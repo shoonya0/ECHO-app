@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Echo" parent="android:Theme.Material.NoActionBar">
+        <!-- Colors come from Jetpack Compose EchoTheme -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">#FFF8F9FA</item>
+        <item name="android:colorBackground">#FFF8F9FA</item>
+    </style>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Echo" parent="android:Theme.Material.NoActionBar">
+        <!-- Dark theme colors for pre-Compose window background -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">#FF0F0F23</item>
+        <item name="android:colorBackground">#FF0F0F23</item>
+    </style>
+</resources>

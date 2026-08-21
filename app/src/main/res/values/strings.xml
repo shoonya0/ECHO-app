@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">ECHO</string>
+    <string name="app_tagline">Real-time messaging, simplified.</string>
+    <string name="welcome_back">Welcome Back</string>
+    <string name="create_account">Create Account</string>
+    <string name="email_label">Email</string>
+    <string name="username_label">Username</string>
+    <string name="password_label">Password</string>
+    <string name="log_in">Log In</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="login_link">Don\'t have an account? Sign Up</string>
+    <string name="signup_link">Already have an account? Log In</string>
+    <string name="logged_in_status">You\'re logged in!</string>
+    <string name="log_out">Log Out</string>
+    <string name="error_invalid_credentials">Invalid credentials</string>
+    <string name="error_empty_email">Please enter your email</string>
+    <string name="error_invalid_email">Please enter a valid email address</string>
+    <string name="error_empty_password">Please enter your password</string>
+    <string name="error_short_password">Password must be at least 8 characters</string>
+    <string name="error_empty_username">Please enter a username</string>
+    <string name="snackbar_account_created">Account created! Please log in.</string>
+</resources>
