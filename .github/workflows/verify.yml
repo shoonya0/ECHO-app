@@ -1,0 +1,56 @@
+# .github/workflows/verify.yml: runs the full check on every push to main and on every
+# pull request. ECHO Android: one Linux leg (an Android build doesn't depend on the host OS).
+#
+# `node scripts/verify.mjs --full` = docs-check, architecture, ktlint (files changed vs
+# origin/main), unit tests, Android lint, UI-test compile, debug APK. The device UI tests
+# are skipped here (no emulator) and the summary says so.
+#
+# Keep `on:` keys at the top level. After the first push, confirm with:
+#   gh run list --workflow verify.yml   (expect jobs > 0)
+
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # docs-check --base and Spotless ratchetFrom need origin/main and the PR's commits
+
+      # --- Docs tree (playbook 11): PRs only, once per run -----------------
+      # Fails when the PR changes a feature's code without updating its state.md / tasks.md,
+      # or adds an over-budget doc. Waive the stale check with [docs-skip] in a commit message.
+      - name: docs-check (PR)
+        if: github.event_name == 'pull_request' && strategy.job-index == 0
+        run: node scripts/docs-check.mjs --strict --base origin/${{ github.base_ref }}
+
+      # --- Android / Gradle -------------------------------------------------
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # runs scripts/*.mjs (no npm dependencies)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21 # matches gradle/gradle-daemon-jvm.properties (toolchainVersion=21)
+      - uses: gradle/actions/setup-gradle@v4
+      - run: node scripts/verify.mjs --full

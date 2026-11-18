@@ -1,0 +1,7 @@
+# Kotlin style for ktlint, run through Spotless (./gradlew spotlessCheck / spotlessApply).
+root = true
+
+[*.{kt,kts}]
+ktlint_code_style = android_studio
+# Composables are PascalCase by convention.
+ktlint_function_naming_ignore_when_annotated_with = Composable

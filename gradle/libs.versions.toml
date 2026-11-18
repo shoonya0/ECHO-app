@@ -20,6 +20,8 @@ securityCrypto = "1.1.0-alpha06"
 coil = "2.7.0"
 kotlinxCoroutinesTest = "1.9.0"
 navigationCompose = "2.8.0"
+spotless = "8.11.0"
+ktlint = "1.8.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -61,3 +63,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
