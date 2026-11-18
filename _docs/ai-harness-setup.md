@@ -8,7 +8,7 @@ other status is final.
 |---|---|
 | Started | 2026-11-18 |
 | Target | `D:\projects\ECHO-app` |
-| Playbook | `D:\projects\ECHO-app\app-setup` (git-ignored copy inside the target) |
+| Playbook | `D:\projects\ECHO-app\app-setup` (git-ignored copy inside the target; removed after setup, same files in `D:\projects\app-setup`) |
 | Playbook version | `2026-10-14` |
 | OS / shell | `win32` / Bash (Git Bash) + PowerShell |
 | Mode | EXISTING |

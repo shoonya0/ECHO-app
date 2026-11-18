@@ -1,7 +1,7 @@
 # ECHO Android: how we work with the AI agent
 
 The parts of the setup playbook this project uses, adapted to it. The playbook itself
-(`app-setup/`, git-ignored; canonical copy `D:\projects\app-setup`) also covers other stacks,
+(`D:\projects\app-setup`, outside this repo) also covers other stacks,
 new-project setup and background reading that this app doesn't need; you don't need it to
 work here. Playbook version this was set up with: `2026-10-14`
 ([setup log](../ai-harness-setup.md)).

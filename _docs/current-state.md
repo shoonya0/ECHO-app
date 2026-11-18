@@ -12,9 +12,9 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** none yet (set by `/feature-docs start`) · AI harness setup on `chore/ai-harness`
+- **Feature:** none yet (set by `/feature-docs start`) · AI harness merged to `main` (PR #5)
 - **Next step:** Task 1 below: a test seam for the WebSocket layer, then pin its behaviour
-- **Updated:** 2026-11-18 at `201396e`
+- **Updated:** 2026-11-18 at `75cb041`
 
 ## What a user can do today
 

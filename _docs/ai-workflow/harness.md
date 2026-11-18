@@ -55,8 +55,7 @@ verify instead) and `graph-update` (the user-level settings already update the g
 
 ## Upgrading the playbook
 
-The playbook lives outside the repo (`D:\projects\app-setup`; this repo's `app-setup/` is a
-git-ignored copy). When it gets a newer version (its `CHANGELOG.md` has a heading newer than
+The playbook lives outside the repo, in `D:\projects\app-setup`. When it gets a newer version (its `CHANGELOG.md` has a heading newer than
 `2026-10-14`), start Claude Code in this repo with:
 
 ```text
