@@ -13,3 +13,13 @@
 .externalNativeBuild
 .cxx
 local.properties
+/app-setup
+
+# AI harness: local state
+.code-review-graph/
+.kotlin/
+agent-browser.json
+.agent/
+.claude/settings.local.json
+CLAUDE.local.md
+.scaffold-tmp/
