@@ -66,19 +66,19 @@ Compare new runs against this list **by test name**.
 ## Known issues and risks
 
 VERIFIED = read in the code on 2026-11-18. None is reproduced on a device yet. Each one is a
-candidate GitHub issue (drafts are proposed at the end of the setup; nothing filed).
+candidate GitHub issue; filed ones link to it.
 
-1. **Two WebSocket connections at once** (VERIFIED in code, effect ASSUMED):
+1. **Two WebSocket connections at once** ([#1](https://github.com/shoonya0/ECHO-app/issues/1); VERIFIED in code, effect ASSUMED):
    `EchoWebSocketClient.connect()` (`features/chat/data/remote/EchoWebSocketClient.kt:38`)
    opens a new socket without closing an open one, and both `ChatListViewModel` and
    `ChatDetailViewModel` call it. Likely result: duplicate incoming events and a leaked socket.
-2. **Chat header without a name when opened from the list** (VERIFIED in code):
+2. **Chat header without a name when opened from the list** ([#2](https://github.com/shoonya0/ECHO-app/issues/2); VERIFIED in code):
    `getChatList` stores only the id (`ChatRepositoryImpl.kt:37`, `addChat`), so
    `getChat()` fails for those chats and `loadChatMetadata` only logs the error.
 3. **Chat list is N+1 and writes** (VERIFIED): for each contact it calls
    `POST chats/direct/{id}` (creates the chat if missing) and one message fetch
    (`ChatRepositoryImpl.kt:32-34`). Slow with many contacts; group chats never appear.
-4. **Server changes not handled yet** (VERIFIED by grep; list in the backend's
+4. **Server changes not handled yet** (close codes: [#1](https://github.com/shoonya0/ECHO-app/issues/1); the rest: [#3](https://github.com/shoonya0/ECHO-app/issues/3); VERIFIED by grep; list in the backend's
    [`08_SERVER_CHANGES`](https://github.com/shoonya0/ECHO/blob/main/Android/_docs/08_SERVER_CHANGES/README.md)):
    - WebSocket close codes `4401`/`4403`: the app reconnects anyway
      (`WebSocketRepositoryImpl.kt:56,61`) instead of logging out.
@@ -87,11 +87,11 @@ candidate GitHub issue (drafts are proposed at the end of the setup; nothing fil
    - `RATE_LIMITED` errors: no retry or backoff; `set_typing` isn't debounced (ASSUMED).
    - Contact lists come in pages: the app reads only the first page (`limit = 50`,
      `ContactsApiService.kt:15-32`).
-5. **Auto-backup of the encrypted prefs** (ASSUMED, known Android behaviour):
+5. **Auto-backup of the encrypted prefs** ([#4](https://github.com/shoonya0/ECHO-app/issues/4); ASSUMED, known Android behaviour):
    `android:allowBackup="true"` with the default `backup_rules.xml` backs up
    `echo_secure_prefs` but not its Keystore key; after a restore to a new device,
    opening the prefs can throw at start-up.
-6. **JWT in debug logs** (VERIFIED): `HttpLoggingInterceptor.Level.BODY`
+6. **JWT in debug logs** ([#4](https://github.com/shoonya0/ECHO-app/issues/4); VERIFIED): `HttpLoggingInterceptor.Level.BODY`
    (`NetworkModule.kt:47`) logs the `Authorization` header in debug builds.
 7. Minor, seen on the emulator (VERIFIED by screenshot, cause ASSUMED): in the dark theme the
    status-bar icons are dark on the dark background (`setup-smoke-login.png`); the app's

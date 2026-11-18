@@ -79,7 +79,7 @@ cloned at `D:\projects\ECHO`, set up with the same playbook (`2026-10-14`).
 | V4 | Context budget | DONE | CLAUDE.md 101 lines (≈1.5k tokens, under the 3k guide). 3 project skills; `close-increment` is `disable-model-invocation`. MCP: user-level `postman` is unused by this project, so disable it here via `/mcp` if `/context` shows its cost. Exact token counts need `/context` (V2) |
 | V5 | Log finalized | DONE | this log: every step has a final status except V7 |
 | V6 | Completion report | DONE | completion report below and in chat |
-| V7 | Commit / first task | TODO | |
+| V7 | Commit / first task | DONE | user: commit, review, push + PR. Commits a319001 (build: Spotless), 9d81161 (chore: harness + docs), ac84e86 (docs: layer table fix from review), then a docs commit with this row. code-reviewer agent (fresh context): no blocking findings; 1 low (layer table vs check) fixed in ac84e86. Issues #1–#4 filed in shoonya0/ECHO-app (user-approved). PR opened from chore/ai-harness; the user merges. First task: WebSocket safety net, then #1 |
 
 ## Test baseline (EXISTING)
 
@@ -97,6 +97,7 @@ At `201396e` (plus the user's uncommitted release-URL edits, which don't change 
 - 2026-11-18: Mode EXISTING, Full harness, no methodology plugin.
 - 2026-11-18: Work on `chore/ai-harness`; leave the uncommitted API-URL / `.gitignore` /
   `.idea` changes untouched in the working tree (the user commits them).
+- 2026-11-18: File known issues as GitHub issues #1–#4 (WebSocket, chat header, server changes, backup + debug logs).
 - 2026-11-18: All project docs live in `_docs/` (user request: current state of the app
   plus other project docs).
 
