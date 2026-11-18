@@ -57,7 +57,7 @@ Each feature uses `data/{di,model,remote,repository}` → `domain/{model,reposit
 |---|---|---|---|---|
 | **presentation** | ✅ | ✅ | ❌ | ✅ (not `core/data`) |
 | **domain** | ❌ | ✅ | ❌ | ✅ `core/domain` only |
-| **data** | ❌ | ✅ | ✅ | ✅ |
+| **data** | ❌ | ✅ | ✅ | ✅ (not `core/presentation`) |
 
 Also: `domain/` stays plain Kotlin (no `android`, `androidx`, `retrofit2`, `okhttp3`
 imports); `core/` never imports `features/`; only `features/home` may import another
