@@ -69,6 +69,8 @@ class MessageApiServiceTest {
         assertEquals(2, data.messages.size)
         assertTrue(data.pagination.hasMore)
         assertEquals("m1", data.pagination.nextCursor)
+        assertEquals(mapOf("u1" to 2L), data.readSeqs)
+        assertEquals(2L, data.messages.first().seq)
     }
 
     @Test

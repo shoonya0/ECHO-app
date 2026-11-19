@@ -13,7 +13,9 @@ sealed interface DomainEvent {
         val emoji: String,
         val action: String
     ) : DomainEvent
-    data class ReadReceipt(val chatId: String, val messageIds: List<String>, val userId: String) :
+
+    /** [userId] has read every message up to [readUpToSeq] in [chatId]. */
+    data class ReadReceipt(val chatId: String, val userId: String, val readUpToSeq: Long) :
         DomainEvent
     data class UserJoined(val chatId: String, val userId: String) : DomainEvent
     data class UserLeft(val chatId: String, val userId: String) : DomainEvent
@@ -51,7 +53,8 @@ fun MessageData.toMessage(currentUserId: String? = null): Message = Message(
     reactions = emptyMap(),
     isEdited = false,
     readByUserIds = emptySet(),
-    createdAt = createdAt?.let { Instant.parse(it) } ?: Instant.EPOCH
+    createdAt = createdAt?.let { Instant.parse(it) } ?: Instant.EPOCH,
+    seq = seq
 )
 
 fun ServerFrame.toDomainEvent(): DomainEvent = when (this) {
@@ -83,7 +86,7 @@ fun ServerFrame.toDomainEvent(): DomainEvent = when (this) {
         data.action
     )
 
-    is ServerFrame.Delivery -> DomainEvent.ReadReceipt(chatId, data.messageIds, data.userId)
+    is ServerFrame.Delivery -> DomainEvent.ReadReceipt(chatId, userId, data.readUpToSeq)
 
     is ServerFrame.Join -> DomainEvent.UserJoined(chatId, userId)
 

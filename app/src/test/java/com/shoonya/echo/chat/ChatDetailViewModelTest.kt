@@ -326,32 +326,98 @@ class ChatDetailViewModelTest {
     }
 
     @Test
-    fun `ws ReadReceipt updates readByUserIds on messages`() = runTest {
+    fun `ws ReadReceipt marks every message up to readUpToSeq as read by that member`() = runTest {
+        // Own messages 1..3, none read yet (#42: read state comes from seqs, not readBy).
+        val mine = (1L..3L).map { seq ->
+            TestData.message2.copy(
+                id = "msg_$seq",
+                seq = seq,
+                readByUserIds = emptySet(),
+                createdAt = Instant.now().minusSeconds(300 - seq)
+            )
+        }
+        fakeChatRepo.setGetChatMessagesSuccess(mine)
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.messages.all { it.readByUserIds.isEmpty() })
+
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.ReadReceipt(TestData.CHAT_ID_DIRECT, TestData.ALICE_ID, readUpToSeq = 2)
+        )
+        advanceUntilIdle()
+
+        val readBy = viewModel.state.value.messages.associate { it.id to it.readByUserIds }
+        assertEquals(setOf(TestData.ALICE_ID), readBy["msg_1"])
+        assertEquals(setOf(TestData.ALICE_ID), readBy["msg_2"])
+        assertEquals(emptySet<String>(), readBy["msg_3"])
+    }
+
+    @Test
+    fun `history readSeqs set who has read each message`() = runTest {
+        val first = TestData.message2.copy(id = "msg_1", seq = 1, readByUserIds = emptySet())
+        val second = TestData.message2.copy(
+            id = "msg_2",
+            seq = 2,
+            readByUserIds = emptySet(),
+            createdAt = first.createdAt.plusSeconds(1)
+        )
         fakeChatRepo.setGetChatMessagesSuccess(
-            listOf(TestData.message2) // message2 has readByUserIds empty initially in test
+            listOf(first, second),
+            readSeqs = mapOf(TestData.ALICE_ID to 1L, TestData.CURRENT_USER_ID to 2L)
         )
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
-        fakeWsRepo.setSendResult(
-            Result.success(
-                ServerFrame.Response(data = ResponseData(success = true), requestId = null)
-            )
-        )
 
         createViewModel()
         advanceUntilIdle()
 
+        val readBy = viewModel.state.value.messages.associate { it.id to it.readByUserIds }
+        // Alice read up to 1; the sender's own read seq doesn't count as "read".
+        assertEquals(setOf(TestData.ALICE_ID), readBy["msg_1"])
+        assertEquals(emptySet<String>(), readBy["msg_2"])
+    }
+
+    @Test
+    fun `an older read receipt never takes read state back`() = runTest {
+        val msg = TestData.message2.copy(id = "msg_5", seq = 5, readByUserIds = emptySet())
+        fakeChatRepo.setGetChatMessagesSuccess(
+            listOf(msg),
+            readSeqs = mapOf(TestData.ALICE_ID to 5L)
+        )
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+
         fakeWsRepo.emitDomainEvent(
-            DomainEvent.ReadReceipt(
-                TestData.CHAT_ID_DIRECT,
-                listOf(TestData.MESSAGE_ID_2),
-                TestData.ALICE_ID
-            )
+            DomainEvent.ReadReceipt(TestData.CHAT_ID_DIRECT, TestData.ALICE_ID, readUpToSeq = 3)
         )
         advanceUntilIdle()
 
-        val updated = viewModel.state.value.messages.find { it.id == TestData.MESSAGE_ID_2 }
-        assertNotNull(updated)
-        assertTrue(TestData.ALICE_ID in updated!!.readByUserIds)
+        assertEquals(5L, viewModel.state.value.readSeqs[TestData.ALICE_ID])
+        assertEquals(
+            setOf(TestData.ALICE_ID),
+            viewModel.state.value.messages.single().readByUserIds
+        )
+    }
+
+    @Test
+    fun `a live message already covered by a member's read seq shows as read`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(
+            emptyList(),
+            readSeqs = mapOf(TestData.ALICE_ID to 7L)
+        )
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+
+        val live = TestData.message2.copy(id = "msg_7", seq = 7, readByUserIds = emptySet())
+        fakeWsRepo.emitDomainEvent(DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, live))
+        advanceUntilIdle()
+
+        assertEquals(
+            setOf(TestData.ALICE_ID),
+            viewModel.state.value.messages.single().readByUserIds
+        )
     }
 
     private fun produceTimeoutCancellationException(): TimeoutCancellationException = runBlocking {

@@ -12,6 +12,8 @@ import kotlinx.serialization.Serializable
 data class MessageListResponse(
     val chat: String,
     val messages: List<MessageDto>,
+    /** Member user ID to the highest seq they have read (#42). The app no longer reads each message's readBy. */
+    val readSeqs: Map<String, Long> = emptyMap(),
     val pagination: MessagePagination
 )
 
@@ -39,7 +41,7 @@ data class MessageDto(
     val attachments: List<AttachmentDto> = emptyList(),
     val reactions: Map<String, ReactionDto> = emptyMap(),
     val status: MessageStatusDto? = null,
-    val readBy: Map<String, String> = emptyMap(),
+    val seq: Long? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null
 )
@@ -107,6 +109,7 @@ fun MessageDto.toMessage(currentUserId: String): Message = Message(
         )
     },
     isEdited = status?.isEdited ?: false,
-    readByUserIds = readBy.keys,
-    createdAt = createdAt?.let { Instant.parse(it) } ?: Instant.EPOCH
+    readByUserIds = emptySet(), // set from the page's readSeqs (Message.withReadState)
+    createdAt = createdAt?.let { Instant.parse(it) } ?: Instant.EPOCH,
+    seq = seq
 )

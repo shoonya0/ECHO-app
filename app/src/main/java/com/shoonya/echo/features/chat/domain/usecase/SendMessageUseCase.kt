@@ -41,7 +41,8 @@ class SendMessageUseCase @Inject constructor(private val wsRepository: WebSocket
                     reactions = emptyMap(),
                     isEdited = false,
                     readByUserIds = emptySet(),
-                    createdAt = Instant.now()
+                    createdAt = Instant.now(),
+                    seq = frame.data.seq
                 )
 
                 else -> throw IllegalStateException("Unexpected response frame: ${frame.type}")

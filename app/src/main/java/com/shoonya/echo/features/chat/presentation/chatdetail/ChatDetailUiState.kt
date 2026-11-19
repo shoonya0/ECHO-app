@@ -11,6 +11,8 @@ data class ChatDetailUiState(
     val hasMore: Boolean = false,
     /** Send as `before` to load the next older page; null when there is none. */
     val nextCursor: String? = null,
+    /** Member user ID to the highest seq they have read; messages' readByUserIds follow it. */
+    val readSeqs: Map<String, Long> = emptyMap(),
     val chatName: String = "",
     val error: String? = null,
     val inputText: String = "",

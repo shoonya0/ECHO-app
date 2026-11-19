@@ -116,7 +116,8 @@ data class MessageData(
     val content: String,
     val messageType: String = "text",
     val attachments: List<AttachmentDto> = emptyList(),
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    val seq: Long? = null
 )
 
 @Serializable
@@ -141,7 +142,13 @@ data class ReactionData(
 )
 
 @Serializable
-data class DeliveryData(val messageIds: List<String>, val userId: String, val status: String)
+data class DeliveryData(
+    // The reader is the frame's top-level userId; the server doesn't repeat it here.
+    val messageIds: List<String> = emptyList(),
+    val status: String = "read",
+    /** The reader's highest read seq; never goes down. 0: nothing numbered read yet (#42). */
+    val readUpToSeq: Long = 0
+)
 
 @Serializable
 data class JoinLeaveData(
@@ -157,7 +164,9 @@ data class ResponseData(
     val messageId: String? = null,
     val timestamp: String? = null,
     val chatId: String? = null,
-    val messageType: String? = null
+    val messageType: String? = null,
+    /** On a send_message reply: the new message's seq. */
+    val seq: Long? = null
 )
 
 @Serializable

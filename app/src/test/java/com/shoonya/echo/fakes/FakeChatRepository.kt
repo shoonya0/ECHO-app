@@ -38,9 +38,10 @@ class FakeChatRepository : ChatRepository {
     fun setGetChatMessagesSuccess(
         messages: List<Message>,
         hasMore: Boolean = false,
-        nextCursor: String? = null
+        nextCursor: String? = null,
+        readSeqs: Map<String, Long> = emptyMap()
     ) {
-        getChatMessagesResult = Result.success(MessagePage(messages, hasMore, nextCursor))
+        getChatMessagesResult = Result.success(MessagePage(messages, hasMore, nextCursor, readSeqs))
     }
 
     fun setGetChatMessagesError(message: String) {

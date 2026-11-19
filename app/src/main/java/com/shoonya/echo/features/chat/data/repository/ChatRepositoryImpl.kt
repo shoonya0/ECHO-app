@@ -91,7 +91,8 @@ class ChatRepositoryImpl @Inject constructor(
                 messages = messages,
                 // Without a cursor the next page can't be asked for: treat it as the last.
                 hasMore = pagination.hasMore && pagination.nextCursor != null,
-                nextCursor = pagination.nextCursor
+                nextCursor = pagination.nextCursor,
+                readSeqs = response.readSeqs
             )
         }.onSuccess { page ->
             Timber.tag("ChatRepo").d(
