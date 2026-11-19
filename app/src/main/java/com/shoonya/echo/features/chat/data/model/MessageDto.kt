@@ -12,8 +12,11 @@ import kotlinx.serialization.Serializable
 data class MessageListResponse(
     val chat: String,
     val messages: List<MessageDto>,
-    /** Member user ID to the highest seq they have read (#42). The app no longer reads each message's readBy. */
-    val readSeqs: Map<String, Long> = emptyMap(),
+    /**
+     * Member user ID to the highest seq they have read (#42); the app no longer reads each
+     * message's readBy. Null only from a server without #42 (it always sends a map).
+     */
+    val readSeqs: Map<String, Long>? = null,
     val pagination: MessagePagination
 )
 

@@ -146,8 +146,11 @@ data class DeliveryData(
     // The reader is the frame's top-level userId; the server doesn't repeat it here.
     val messageIds: List<String> = emptyList(),
     val status: String = "read",
-    /** The reader's highest read seq; never goes down. 0: nothing numbered read yet (#42). */
-    val readUpToSeq: Long = 0
+    /**
+     * The reader's highest read seq; never goes down. 0: nothing numbered read yet (#42).
+     * No default: a frame without it fails to parse and is logged, instead of reading as 0.
+     */
+    val readUpToSeq: Long
 )
 
 @Serializable
@@ -165,9 +168,13 @@ data class ResponseData(
     val timestamp: String? = null,
     val chatId: String? = null,
     val messageType: String? = null,
-    /** On a send_message reply: the new message's seq. */
-    val seq: Long? = null
+    /** The reply's own payload; on a send_message reply it holds the new message's seq. */
+    val data: ResponsePayload? = null
 )
+
+/** The nested `data.data` of a response; only the fields the app reads. */
+@Serializable
+data class ResponsePayload(val seq: Long? = null)
 
 @Serializable
 data class ErrorData(val code: String, val message: String, val details: String? = null)

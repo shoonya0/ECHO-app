@@ -4,12 +4,16 @@ import com.shoonya.echo.features.chat.domain.model.Chat
 import com.shoonya.echo.features.chat.domain.model.Message
 import com.shoonya.echo.features.chat.domain.model.MessagePage
 import com.shoonya.echo.features.chat.domain.repository.ChatRepository
+import kotlinx.coroutines.CompletableDeferred
 
 class FakeChatRepository : ChatRepository {
     private var chatListResult: Result<List<Chat>> = Result.success(emptyList())
     private var createDirectChatResult: Result<Chat> = Result.failure(Exception("Not set"))
     private var getChatMessagesResult: Result<MessagePage> =
         Result.success(MessagePage(emptyList(), hasMore = false, nextCursor = null))
+
+    /** When set, getChatMessages waits for it, to test events that arrive during a load. */
+    var getChatMessagesGate: CompletableDeferred<Unit>? = null
 
     /** The `before` cursor of each getChatMessages call, in order. */
     val getChatMessagesCursors = mutableListOf<String?>()
@@ -83,6 +87,7 @@ class FakeChatRepository : ChatRepository {
         before: String?
     ): Result<MessagePage> {
         getChatMessagesCursors += before
+        getChatMessagesGate?.await()
         return getChatMessagesResult.map { page ->
             // Normalize to oldest-first
             page.copy(messages = page.messages.sortedBy { it.createdAt })

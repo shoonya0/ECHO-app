@@ -22,6 +22,7 @@ import com.shoonya.echo.features.chat.domain.usecase.SendMessageUseCase
 import com.shoonya.echo.features.chat.domain.usecase.SetTypingUseCase
 import com.shoonya.echo.features.chat.presentation.chatdetail.ChatDetailViewModel
 import java.time.Instant
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
@@ -418,6 +419,65 @@ class ChatDetailViewModelTest {
             setOf(TestData.ALICE_ID),
             viewModel.state.value.messages.single().readByUserIds
         )
+    }
+
+    @Test
+    fun `a read receipt during the history load isn't undone by the older page`() = runTest {
+        val msg = TestData.message2.copy(id = "msg_12", seq = 12, readByUserIds = emptySet())
+        val gate = CompletableDeferred<Unit>()
+        fakeChatRepo.getChatMessagesGate = gate
+        fakeChatRepo.setGetChatMessagesSuccess(
+            listOf(msg),
+            readSeqs = mapOf(TestData.ALICE_ID to 10L) // snapshot taken before Alice read on
+        )
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.ReadReceipt(TestData.CHAT_ID_DIRECT, TestData.ALICE_ID, readUpToSeq = 12)
+        )
+        advanceUntilIdle()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(12L, viewModel.state.value.readSeqs[TestData.ALICE_ID])
+        assertEquals(
+            setOf(TestData.ALICE_ID),
+            viewModel.state.value.messages.single().readByUserIds
+        )
+    }
+
+    @Test
+    fun `own message acked before its live event still gets its seq and read tick`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(emptyList())
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        // The ack carries no seq, as if it arrived before the broadcast.
+        fakeWsRepo.setSendResult(
+            Result.success(
+                ServerFrame.Response(
+                    data = ResponseData(success = true, messageId = "msg_9"),
+                    requestId = null
+                )
+            )
+        )
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.onInputChanged("Hi")
+        viewModel.sendMessage()
+        advanceUntilIdle()
+
+        val echoed = viewModel.state.value.messages.single { it.id == "msg_9" }.copy(seq = 9)
+        fakeWsRepo.emitDomainEvent(DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, echoed))
+        advanceUntilIdle()
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.ReadReceipt(TestData.CHAT_ID_DIRECT, TestData.ALICE_ID, readUpToSeq = 9)
+        )
+        advanceUntilIdle()
+
+        val mine = viewModel.state.value.messages.single { it.id == "msg_9" }
+        assertEquals(9L, mine.seq)
+        assertEquals(setOf(TestData.ALICE_ID), mine.readByUserIds)
     }
 
     private fun produceTimeoutCancellationException(): TimeoutCancellationException = runBlocking {

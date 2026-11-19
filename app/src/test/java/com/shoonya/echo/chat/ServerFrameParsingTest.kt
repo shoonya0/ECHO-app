@@ -1,10 +1,15 @@
 package com.shoonya.echo.chat
 
 import com.shoonya.echo.core.data.remote.NetworkModule
+import com.shoonya.echo.fakes.FakeWebSocketRepository
 import com.shoonya.echo.features.chat.domain.model.DomainEvent
 import com.shoonya.echo.features.chat.domain.model.ServerFrame
 import com.shoonya.echo.features.chat.domain.model.toDomainEvent
+import com.shoonya.echo.features.chat.domain.usecase.SendMessageUseCase
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.SerializationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -52,12 +57,34 @@ class ServerFrameParsingTest {
     }
 
     @Test
-    fun `send_message reply carries the new message's seq`() {
+    fun `send_message reply gives the sent message its seq`() = runTest {
+        // Real shape (websocket.controller.go): the seq sits in data.data, not in data.
         val frame = json.decodeFromString(
             ServerFrame.serializer(),
-            """{"type":"response","requestId":"r1","data":{"success":true,"messageId":"m8","seq":8}}"""
+            """
+            {"type":"response","requestId":"r1",
+             "data":{"success":true,"messageId":"m8","requestId":"r1",
+                     "data":{"messageId":"m8","seq":8,"timestamp":"2026-11-04T12:00:00Z",
+                             "chatId":"c1","messageType":"text"}}}
+            """.trimIndent()
         )
+        val ws = FakeWebSocketRepository().apply { setSendResult(Result.success(frame)) }
 
-        assertEquals(8L, (frame as ServerFrame.Response).data.seq)
+        val sent = SendMessageUseCase(ws)("c1", "hi", "me").getOrThrow()
+
+        assertEquals("m8", sent.id)
+        assertEquals(8L, sent.seq)
+    }
+
+    @Test
+    fun `delivery frame without readUpToSeq fails instead of passing as nothing read`() {
+        assertThrows(SerializationException::class.java) {
+            decode(
+                """
+                {"type":"delivery","chatId":"c1","userId":"reader",
+                 "data":{"messageIds":["m1"],"status":"read"}}
+                """.trimIndent()
+            )
+        }
     }
 }
