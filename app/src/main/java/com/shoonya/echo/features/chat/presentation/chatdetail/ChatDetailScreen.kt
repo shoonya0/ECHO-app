@@ -39,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -66,6 +67,12 @@ import java.time.ZoneId
 private sealed interface ChatListItem {
     data class MessageItem(val message: Message) : ChatListItem
     data class DateSeparatorItem(val label: String) : ChatListItem
+}
+
+/** The LazyColumn key of [item]; also used to find the scroll anchor after loading older pages. */
+private fun chatListItemKey(item: ChatListItem): String = when (item) {
+    is ChatListItem.MessageItem -> item.message.id.ifBlank { item.message.createdAt.toString() }
+    is ChatListItem.DateSeparatorItem -> "sep_${item.label}"
 }
 
 /**
@@ -155,19 +162,24 @@ internal fun ChatDetailContent(
         // markRead handled via ViewModel
     }
 
-    // Detect scroll to top for pagination
+    // Detect scroll to top for pagination. The effect outlives recompositions, so read the
+    // latest values: captured directly, hasMore stayed false from before the first load (#7).
+    val currentHasMore by rememberUpdatedState(hasMore)
+    val currentIsLoadingMore by rememberUpdatedState(isLoadingMore)
+    val currentOnLoadMore by rememberUpdatedState(onLoadMore)
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .collect { index ->
-                if (index == 0 && hasMore && !isLoadingMore) {
-                    onLoadMore()
+                if (index == 0 && currentHasMore && !currentIsLoadingMore) {
+                    currentOnLoadMore()
                 }
             }
     }
 
-    // Auto-scroll to bottom on initial load & new messages (WhatsApp-like)
-    val lastItemCount = chatItems.size
-    LaunchedEffect(lastItemCount) {
+    // Auto-scroll to bottom on initial load & new messages (WhatsApp-like). Keyed on the
+    // newest message, not the item count, so loading older pages doesn't jump to the bottom.
+    val newestMessageId = messages.lastOrNull()?.id
+    LaunchedEffect(newestMessageId) {
         if (chatItems.isNotEmpty()) {
             listState.animateScrollToItem(chatItems.lastIndex)
         }
@@ -184,7 +196,8 @@ internal fun ChatDetailContent(
         if (!isLoadingMore && savedItemKey.value != null) {
             val anchorKey = savedItemKey.value!!
             savedItemKey.value = null
-            val index = messages.indexOfFirst { it.id == anchorKey }
+            // Same index space as the LazyColumn: chatItems includes the date separators.
+            val index = chatItems.indexOfFirst { chatListItemKey(it) == anchorKey }
             if (index >= 0) {
                 listState.scrollToItem(index)
             }
@@ -362,15 +375,7 @@ internal fun ChatDetailContent(
                         }
                     }
 
-                    items(chatItems, key = { item ->
-                        when (item) {
-                            is ChatListItem.MessageItem -> item.message.id.ifBlank {
-                                item.message.createdAt.toString()
-                            }
-
-                            is ChatListItem.DateSeparatorItem -> "sep_${item.label}"
-                        }
-                    }) { item ->
+                    items(chatItems, key = ::chatListItemKey) { item ->
                         when (item) {
                             is ChatListItem.DateSeparatorItem -> DateSeparator(label = item.label)
 
