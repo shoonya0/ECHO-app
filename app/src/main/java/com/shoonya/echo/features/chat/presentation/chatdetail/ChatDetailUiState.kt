@@ -17,7 +17,7 @@ data class ChatDetailUiState(
     val typingUserIds: Set<String> = emptySet(),
     val connectionStatus: WsConnectionStatus = WsConnectionStatus.DISCONNECTED,
     val chatType: ChatType? = null,
-    val isCreatingDirectChat: Boolean = false,
+    val isCreatingDirectChat: Boolean = false
 ) {
     val hasMore: Boolean get() = messages.size < totalCount
 }

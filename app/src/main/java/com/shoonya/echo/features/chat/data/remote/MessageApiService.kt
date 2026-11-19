@@ -11,6 +11,6 @@ interface MessageApiService {
     suspend fun getChatMessages(
         @Path("chatId") chatId: String,
         @Query("limit") limit: Int = 50,
-        @Query("offset") offset: Int = 0,
+        @Query("offset") offset: Int = 0
     ): ApiResponse<MessageListResponse>
 }

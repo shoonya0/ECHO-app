@@ -10,16 +10,16 @@ import com.shoonya.echo.features.chat.data.remote.MessageApiService
 import com.shoonya.echo.features.chat.domain.model.Chat
 import com.shoonya.echo.features.chat.domain.model.Message
 import com.shoonya.echo.features.chat.domain.repository.ChatRepository
-import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import timber.log.Timber
 
 @Singleton
 class ChatRepositoryImpl @Inject constructor(
     private val chatApi: ChatApiService,
     private val messageApi: MessageApiService,
     private val tokenStore: SecureTokenStore,
-    private val chatCache: ChatCache,
+    private val chatCache: ChatCache
 ) : ChatRepository {
 
     override suspend fun getChatList(contactIds: List<String>): Result<List<Chat>> {
@@ -41,7 +41,9 @@ class ChatRepositoryImpl @Inject constructor(
                     chats.add(chat.copy(lastMessage = preview))
                 }
             }.onFailure { err ->
-                Timber.tag("ChatRepo").e(err, "discover direct chat failed for contact: %s", contactId)
+                Timber.tag(
+                    "ChatRepo"
+                ).e(err, "discover direct chat failed for contact: %s", contactId)
             }
         }
 
@@ -71,7 +73,7 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun getChatMessages(
         chatId: String,
         limit: Int,
-        offset: Int,
+        offset: Int
     ): Result<Pair<List<Message>, Int>> {
         val currentUserId = tokenStore.getUserId()
             ?: return Result.failure(IllegalStateException("User not authenticated"))
@@ -82,7 +84,15 @@ class ChatRepositoryImpl @Inject constructor(
                 .sortedBy { it.createdAt } // Normalize to oldest-first for WhatsApp-like ordering
             Pair(messages, response.pagination.totalCount)
         }.onSuccess { (messages, total) ->
-            Timber.tag("ChatRepo").d("get messages success: %s (offset=%d, count=%d/%d)", chatId, offset, messages.size, total)
+            Timber.tag(
+                "ChatRepo"
+            ).d(
+                "get messages success: %s (offset=%d, count=%d/%d)",
+                chatId,
+                offset,
+                messages.size,
+                total
+            )
         }.onFailure { err ->
             Timber.tag("ChatRepo").e(err, "get messages failed: %s", chatId)
         }
@@ -91,12 +101,14 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun sendMessage(
         chatId: String,
         content: String,
-        messageType: String,
+        messageType: String
     ): Result<Message> {
         // REST-based send is not yet available — the backend only supports WebSocket message sending.
         // This returns a NOT_IMPLEMENTED error until Phase 5 wires the WebSocket.
         return Result.failure(
-            UnsupportedOperationException("Message sending is coming in Phase 5 (WebSocket). For now, use the WebSocket protocol.")
+            UnsupportedOperationException(
+                "Message sending is coming in Phase 5 (WebSocket). For now, use the WebSocket protocol."
+            )
         )
     }
 

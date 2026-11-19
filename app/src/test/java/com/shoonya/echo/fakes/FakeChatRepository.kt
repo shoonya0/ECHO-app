@@ -7,8 +7,12 @@ import com.shoonya.echo.features.chat.domain.repository.ChatRepository
 class FakeChatRepository : ChatRepository {
     private var chatListResult: Result<List<Chat>> = Result.success(emptyList())
     private var createDirectChatResult: Result<Chat> = Result.failure(Exception("Not set"))
-    private var getChatMessagesResult: Result<Pair<List<Message>, Int>> = Result.success(Pair(emptyList(), 0))
-    private var sendMessageResult: Result<Message> = Result.failure(UnsupportedOperationException("Not implemented"))
+    private var getChatMessagesResult: Result<Pair<List<Message>, Int>> = Result.success(
+        Pair(emptyList(), 0)
+    )
+    private var sendMessageResult: Result<Message> = Result.failure(
+        UnsupportedOperationException("Not implemented")
+    )
     private var getLatestMessageResult: Result<Message?> = Result.success(null)
     private var getChatResult: Result<Chat> = Result.failure(Exception("Chat not found in cache"))
 
@@ -62,21 +66,21 @@ class FakeChatRepository : ChatRepository {
 
     override suspend fun getChatList(contactIds: List<String>): Result<List<Chat>> = chatListResult
 
-    override suspend fun createDirectChat(targetUserId: String): Result<Chat> = createDirectChatResult
+    override suspend fun createDirectChat(targetUserId: String): Result<Chat> =
+        createDirectChatResult
 
     override suspend fun getChatMessages(
         chatId: String,
         limit: Int,
-        offset: Int,
-    ): Result<Pair<List<Message>, Int>> =
-        getChatMessagesResult.map { (messages, total) ->
-            Pair(messages.sortedBy { it.createdAt }, total) // Normalize to oldest-first
-        }
+        offset: Int
+    ): Result<Pair<List<Message>, Int>> = getChatMessagesResult.map { (messages, total) ->
+        Pair(messages.sortedBy { it.createdAt }, total) // Normalize to oldest-first
+    }
 
     override suspend fun sendMessage(
         chatId: String,
         content: String,
-        messageType: String,
+        messageType: String
     ): Result<Message> = sendMessageResult
 
     override suspend fun getChat(chatId: String): Result<Chat> = getChatResult

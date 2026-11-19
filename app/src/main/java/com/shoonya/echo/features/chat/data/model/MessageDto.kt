@@ -4,15 +4,15 @@ import com.shoonya.echo.features.chat.domain.model.Attachment
 import com.shoonya.echo.features.chat.domain.model.Message
 import com.shoonya.echo.features.chat.domain.model.MessageType
 import com.shoonya.echo.features.chat.domain.model.Reaction
+import java.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import java.time.Instant
 
 @Serializable
 data class MessageListResponse(
     val chat: String,
     val messages: List<MessageDto>,
-    val pagination: MessagePagination,
+    val pagination: MessagePagination
 )
 
 @Serializable
@@ -22,7 +22,7 @@ data class MessagePagination(
     val count: Int,
     val totalCount: Int,
     val page: Int,
-    val totalPages: Int,
+    val totalPages: Int
 )
 
 @Serializable
@@ -38,7 +38,7 @@ data class MessageDto(
     val status: MessageStatusDto? = null,
     val readBy: Map<String, String> = emptyMap(),
     val createdAt: String? = null,
-    val updatedAt: String? = null,
+    val updatedAt: String? = null
 )
 
 @Serializable
@@ -46,7 +46,7 @@ data class MessageSenderDto(
     val userId: String,
     val username: String,
     val displayName: String,
-    val avatar: String,
+    val avatar: String
 )
 
 @Serializable
@@ -55,21 +55,21 @@ data class AttachmentDto(
     val originalName: String,
     val url: String,
     val mimeType: String,
-    val size: Long,
+    val size: Long
 )
 
 @Serializable
 data class ReactionDto(
     val count: Int = 0,
     val users: List<String> = emptyList(),
-    val details: Map<String, String> = emptyMap(),
+    val details: Map<String, String> = emptyMap()
 )
 
 @Serializable
 data class MessageStatusDto(
     val isEdited: Boolean = false,
     val isDeleted: Boolean = false,
-    val isPinned: Boolean = false,
+    val isPinned: Boolean = false
 )
 
 fun MessageDto.toMessage(currentUserId: String): Message = Message(
@@ -93,17 +93,17 @@ fun MessageDto.toMessage(currentUserId: String): Message = Message(
             name = att.originalName,
             url = att.url,
             mimeType = att.mimeType,
-            size = att.size,
+            size = att.size
         )
     },
     reactions = reactions.mapValues { (_, dto) ->
         Reaction(
             count = dto.count,
             userNames = dto.details.values.toList(),
-            hasReacted = dto.users.contains(currentUserId),
+            hasReacted = dto.users.contains(currentUserId)
         )
     },
     isEdited = status?.isEdited ?: false,
     readByUserIds = readBy.keys,
-    createdAt = createdAt?.let { Instant.parse(it) } ?: Instant.EPOCH,
+    createdAt = createdAt?.let { Instant.parse(it) } ?: Instant.EPOCH
 )

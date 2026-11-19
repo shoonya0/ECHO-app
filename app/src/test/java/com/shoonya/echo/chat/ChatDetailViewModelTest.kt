@@ -1,5 +1,6 @@
 package com.shoonya.echo.chat
 
+import androidx.lifecycle.SavedStateHandle
 import com.shoonya.echo.fakes.FakeChatRepository
 import com.shoonya.echo.fakes.FakeUserIdProvider
 import com.shoonya.echo.fakes.FakeWebSocketRepository
@@ -7,9 +8,8 @@ import com.shoonya.echo.fakes.TestData
 import com.shoonya.echo.features.chat.domain.model.DomainEvent
 import com.shoonya.echo.features.chat.domain.model.Message
 import com.shoonya.echo.features.chat.domain.model.MessageType
-import com.shoonya.echo.features.chat.domain.model.ServerFrame
 import com.shoonya.echo.features.chat.domain.model.ResponseData
-import com.shoonya.echo.features.chat.presentation.chatdetail.ChatDetailViewModel
+import com.shoonya.echo.features.chat.domain.model.ServerFrame
 import com.shoonya.echo.features.chat.domain.usecase.AddReactionUseCase
 import com.shoonya.echo.features.chat.domain.usecase.CreateDirectChatUseCase
 import com.shoonya.echo.features.chat.domain.usecase.GetChatMessagesUseCase
@@ -20,19 +20,20 @@ import com.shoonya.echo.features.chat.domain.usecase.MarkReadUseCase
 import com.shoonya.echo.features.chat.domain.usecase.RemoveReactionUseCase
 import com.shoonya.echo.features.chat.domain.usecase.SendMessageUseCase
 import com.shoonya.echo.features.chat.domain.usecase.SetTypingUseCase
-import androidx.lifecycle.SavedStateHandle
+import com.shoonya.echo.features.chat.presentation.chatdetail.ChatDetailViewModel
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,7 +41,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatDetailViewModelTest {
@@ -76,7 +76,7 @@ class ChatDetailViewModelTest {
             addReactionUseCase = AddReactionUseCase(fakeWsRepo),
             removeReactionUseCase = RemoveReactionUseCase(fakeWsRepo),
             wsRepository = fakeWsRepo,
-            userIdProvider = fakeUserIdProvider,
+            userIdProvider = fakeUserIdProvider
         )
     }
 
@@ -84,11 +84,13 @@ class ChatDetailViewModelTest {
     fun `on init, loads messages successfully`() = runTest {
         fakeChatRepo.setGetChatMessagesSuccess(
             listOf(TestData.message1, TestData.message2),
-            totalCount = 10,
+            totalCount = 10
         )
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
-            Result.success(ServerFrame.Response(data = ResponseData(success = true), requestId = null))
+            Result.success(
+                ServerFrame.Response(data = ResponseData(success = true), requestId = null)
+            )
         )
 
         createViewModel()
@@ -105,7 +107,9 @@ class ChatDetailViewModelTest {
         fakeChatRepo.setGetChatMessagesError("Network error")
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
-            Result.success(ServerFrame.Response(data = ResponseData(success = true), requestId = null))
+            Result.success(
+                ServerFrame.Response(data = ResponseData(success = true), requestId = null)
+            )
         )
 
         createViewModel()
@@ -127,9 +131,9 @@ class ChatDetailViewModelTest {
                         success = true,
                         messageId = TestData.MESSAGE_ID_2,
                         chatId = TestData.CHAT_ID_DIRECT,
-                        messageType = "text",
+                        messageType = "text"
                     ),
-                    requestId = null,
+                    requestId = null
                 )
             )
         )
@@ -192,7 +196,9 @@ class ChatDetailViewModelTest {
         fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
-            Result.success(ServerFrame.Response(data = ResponseData(success = true), requestId = null))
+            Result.success(
+                ServerFrame.Response(data = ResponseData(success = true), requestId = null)
+            )
         )
 
         createViewModel()
@@ -219,7 +225,7 @@ class ChatDetailViewModelTest {
             reactions = emptyMap(),
             isEdited = false,
             readByUserIds = emptySet(),
-            createdAt = Instant.now(),
+            createdAt = Instant.now()
         )
         fakeWsRepo.emitDomainEvent(
             DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, serverMessage)
@@ -242,43 +248,48 @@ class ChatDetailViewModelTest {
     }
 
     @Test
-    fun `sendMessage timeout without broadcast keeps optimistic message and clears input`() = runTest {
-        fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
-        fakeChatRepo.setGetChatSuccess(TestData.directChat)
-        fakeWsRepo.setSendResult(
-            Result.success(ServerFrame.Response(data = ResponseData(success = true), requestId = null))
-        )
+    fun `sendMessage timeout without broadcast keeps optimistic message and clears input`() =
+        runTest {
+            fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
+            fakeChatRepo.setGetChatSuccess(TestData.directChat)
+            fakeWsRepo.setSendResult(
+                Result.success(
+                    ServerFrame.Response(data = ResponseData(success = true), requestId = null)
+                )
+            )
 
-        createViewModel()
-        advanceUntilIdle()
+            createViewModel()
+            advanceUntilIdle()
 
-        // Gate so we control when the send resolves.
-        fakeWsRepo.enableSendGate()
+            // Gate so we control when the send resolves.
+            fakeWsRepo.enableSendGate()
 
-        viewModel.onInputChanged("Hello!")
-        viewModel.sendMessage()
-        runCurrent()
+            viewModel.onInputChanged("Hello!")
+            viewModel.sendMessage()
+            runCurrent()
 
-        // Ack never correlates — send times out.
-        fakeWsRepo.completeSendGate(
-            Result.failure(produceTimeoutCancellationException())
-        )
-        advanceUntilIdle()
+            // Ack never correlates — send times out.
+            fakeWsRepo.completeSendGate(
+                Result.failure(produceTimeoutCancellationException())
+            )
+            advanceUntilIdle()
 
-        val state = viewModel.state.value
-        // Input stays cleared and the optimistic bubble remains visible.
-        assertEquals("", state.inputText)
-        assertFalse(state.isSending)
-        assertEquals(1, state.messages.size)
-        assertEquals("Hello!", state.messages.first().content)
-    }
+            val state = viewModel.state.value
+            // Input stays cleared and the optimistic bubble remains visible.
+            assertEquals("", state.inputText)
+            assertFalse(state.isSending)
+            assertEquals(1, state.messages.size)
+            assertEquals("Hello!", state.messages.first().content)
+        }
 
     @Test
     fun `ws NewMessage event appends message to state`() = runTest {
         fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
-            Result.success(ServerFrame.Response(data = ResponseData(success = true), requestId = null))
+            Result.success(
+                ServerFrame.Response(data = ResponseData(success = true), requestId = null)
+            )
         )
 
         createViewModel()
@@ -299,7 +310,9 @@ class ChatDetailViewModelTest {
         fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
-            Result.success(ServerFrame.Response(data = ResponseData(success = true), requestId = null))
+            Result.success(
+                ServerFrame.Response(data = ResponseData(success = true), requestId = null)
+            )
         )
 
         createViewModel()
@@ -317,18 +330,24 @@ class ChatDetailViewModelTest {
     fun `ws ReadReceipt updates readByUserIds on messages`() = runTest {
         fakeChatRepo.setGetChatMessagesSuccess(
             listOf(TestData.message2), // message2 has readByUserIds empty initially in test
-            totalCount = 1,
+            totalCount = 1
         )
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
-            Result.success(ServerFrame.Response(data = ResponseData(success = true), requestId = null))
+            Result.success(
+                ServerFrame.Response(data = ResponseData(success = true), requestId = null)
+            )
         )
 
         createViewModel()
         advanceUntilIdle()
 
         fakeWsRepo.emitDomainEvent(
-            DomainEvent.ReadReceipt(TestData.CHAT_ID_DIRECT, listOf(TestData.MESSAGE_ID_2), TestData.ALICE_ID)
+            DomainEvent.ReadReceipt(
+                TestData.CHAT_ID_DIRECT,
+                listOf(TestData.MESSAGE_ID_2),
+                TestData.ALICE_ID
+            )
         )
         advanceUntilIdle()
 
@@ -361,7 +380,7 @@ class ChatDetailViewModelTest {
             reactions = emptyMap(),
             isEdited = false,
             readByUserIds = emptySet(),
-            createdAt = Instant.now().minusSeconds(600),
+            createdAt = Instant.now().minusSeconds(600)
         )
         val newer = Message(
             id = "msg_newer",
@@ -376,17 +395,19 @@ class ChatDetailViewModelTest {
             reactions = emptyMap(),
             isEdited = false,
             readByUserIds = emptySet(),
-            createdAt = Instant.now().minusSeconds(60),
+            createdAt = Instant.now().minusSeconds(60)
         )
 
         // Simulate backend returning newest-first
         fakeChatRepo.setGetChatMessagesSuccess(
             messages = listOf(newer, older),
-            totalCount = 2,
+            totalCount = 2
         )
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
-            Result.success(ServerFrame.Response(data = ResponseData(success = true), requestId = null))
+            Result.success(
+                ServerFrame.Response(data = ResponseData(success = true), requestId = null)
+            )
         )
 
         createViewModel()

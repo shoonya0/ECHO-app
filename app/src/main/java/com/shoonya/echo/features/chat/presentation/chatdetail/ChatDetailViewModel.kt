@@ -8,6 +8,7 @@ import com.shoonya.echo.core.util.ErrorMapper.toUserMessage
 import com.shoonya.echo.features.chat.domain.model.DomainEvent
 import com.shoonya.echo.features.chat.domain.model.Message
 import com.shoonya.echo.features.chat.domain.model.PresenceStatus
+import com.shoonya.echo.features.chat.domain.model.Reaction
 import com.shoonya.echo.features.chat.domain.repository.WebSocketRepository
 import com.shoonya.echo.features.chat.domain.repository.WsConnectionStatus
 import com.shoonya.echo.features.chat.domain.usecase.AddReactionUseCase
@@ -21,6 +22,8 @@ import com.shoonya.echo.features.chat.domain.usecase.RemoveReactionUseCase
 import com.shoonya.echo.features.chat.domain.usecase.SendMessageUseCase
 import com.shoonya.echo.features.chat.domain.usecase.SetTypingUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Instant
+import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -33,8 +36,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.time.Instant
-import javax.inject.Inject
 
 @HiltViewModel
 class ChatDetailViewModel @Inject constructor(
@@ -50,7 +51,7 @@ class ChatDetailViewModel @Inject constructor(
     private val addReactionUseCase: AddReactionUseCase,
     private val removeReactionUseCase: RemoveReactionUseCase,
     private val wsRepository: WebSocketRepository,
-    private val userIdProvider: UserIdProvider,
+    private val userIdProvider: UserIdProvider
 ) : ViewModel() {
 
     private val rawChatId: String = savedStateHandle.get<String>("chatId") ?: ""
@@ -75,12 +76,22 @@ class ChatDetailViewModel @Inject constructor(
     init {
         if (rawChatId.startsWith("new:")) {
             val targetUserId = rawChatId.removePrefix("new:")
-            _state.update { it.copy(isCreatingDirectChat = true, connectionStatus = WsConnectionStatus.CONNECTING) }
+            _state.update {
+                it.copy(
+                    isCreatingDirectChat = true,
+                    connectionStatus = WsConnectionStatus.CONNECTING
+                )
+            }
             viewModelScope.launch {
                 createDirectChatUseCase(targetUserId)
                     .onSuccess { chat ->
                         resolvedChatId = chat.id
-                        _state.update { it.copy(isCreatingDirectChat = false, connectionStatus = WsConnectionStatus.CONNECTING) }
+                        _state.update {
+                            it.copy(
+                                isCreatingDirectChat = false,
+                                connectionStatus = WsConnectionStatus.CONNECTING
+                            )
+                        }
                         loadChatMetadata()
                         loadMessages()
                         connectAndJoin()
@@ -90,7 +101,7 @@ class ChatDetailViewModel @Inject constructor(
                             it.copy(
                                 isCreatingDirectChat = false,
                                 error = err.toUserMessage(),
-                                connectionStatus = WsConnectionStatus.DISCONNECTED,
+                                connectionStatus = WsConnectionStatus.DISCONNECTED
                             )
                         }
                     }
@@ -152,7 +163,7 @@ class ChatDetailViewModel @Inject constructor(
             reactions = emptyMap(),
             isEdited = false,
             readByUserIds = emptySet(),
-            createdAt = java.time.Instant.now(),
+            createdAt = java.time.Instant.now()
         )
 
         inFlightSends[requestId] = text
@@ -162,7 +173,7 @@ class ChatDetailViewModel @Inject constructor(
             it.copy(
                 inputText = "",
                 isSending = true,
-                messages = mergeMessages(it.messages, listOf(optimisticMessage)),
+                messages = mergeMessages(it.messages, listOf(optimisticMessage))
             )
         }
 
@@ -174,7 +185,7 @@ class ChatDetailViewModel @Inject constructor(
                         _state.update {
                             it.copy(
                                 isSending = false,
-                                messages = replaceOptimistic(it.messages, requestId, serverMessage),
+                                messages = replaceOptimistic(it.messages, requestId, serverMessage)
                             )
                         }
                     }
@@ -187,7 +198,7 @@ class ChatDetailViewModel @Inject constructor(
                             _state.update {
                                 it.copy(
                                     isSending = false,
-                                    messages = removeOptimistic(it.messages, requestId),
+                                    messages = removeOptimistic(it.messages, requestId)
                                 )
                             }
                         } else if (err is TimeoutCancellationException) {
@@ -203,7 +214,7 @@ class ChatDetailViewModel @Inject constructor(
                                 it.copy(
                                     isSending = false,
                                     inputText = text, // restore input so user can retry
-                                    messages = removeOptimistic(it.messages, requestId),
+                                    messages = removeOptimistic(it.messages, requestId)
                                 )
                             }
                             _events.emit(ChatDetailEvent.ShowSnackbar(err.toUserMessage()))
@@ -215,7 +226,7 @@ class ChatDetailViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isSending = false,
-                            messages = removeOptimistic(it.messages, requestId),
+                            messages = removeOptimistic(it.messages, requestId)
                         )
                     }
                 } else if (e is TimeoutCancellationException) {
@@ -226,7 +237,7 @@ class ChatDetailViewModel @Inject constructor(
                         it.copy(
                             isSending = false,
                             inputText = text,
-                            messages = removeOptimistic(it.messages, requestId),
+                            messages = removeOptimistic(it.messages, requestId)
                         )
                     }
                     _events.emit(ChatDetailEvent.ShowSnackbar("Failed to send message"))
@@ -247,7 +258,7 @@ class ChatDetailViewModel @Inject constructor(
                         it.copy(
                             isLoadingMore = false,
                             messages = mergeMessages(it.messages, newMessages),
-                            totalCount = total,
+                            totalCount = total
                         )
                     }
                 }
@@ -286,7 +297,7 @@ class ChatDetailViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             chatName = chat.name,
-                            chatType = chat.type,
+                            chatType = chat.type
                         )
                     }
                 }
@@ -305,7 +316,7 @@ class ChatDetailViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             messages = messages,
-                            totalCount = total,
+                            totalCount = total
                         )
                     }
                 }
@@ -314,7 +325,7 @@ class ChatDetailViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            error = err.toUserMessage(),
+                            error = err.toUserMessage()
                         )
                     }
                 }
@@ -352,15 +363,21 @@ class ChatDetailViewModel @Inject constructor(
                         }
                     }
                 }
+
                 is DomainEvent.TypingUpdate -> {
                     if (event.chatId == resolvedChatId) {
                         if (event.isTyping) {
-                            _state.update { it.copy(typingUserIds = it.typingUserIds + event.userId) }
+                            _state.update {
+                                it.copy(typingUserIds = it.typingUserIds + event.userId)
+                            }
                         } else {
-                            _state.update { it.copy(typingUserIds = it.typingUserIds - event.userId) }
+                            _state.update {
+                                it.copy(typingUserIds = it.typingUserIds - event.userId)
+                            }
                         }
                     }
                 }
+
                 is DomainEvent.PresenceUpdate -> {
                     // Update participant online status in messages list if the sender is in this chat
                     _state.update { state ->
@@ -375,6 +392,7 @@ class ChatDetailViewModel @Inject constructor(
                         )
                     }
                 }
+
                 is DomainEvent.ReactionUpdate -> {
                     if (event.chatId == resolvedChatId) {
                         _state.update { state ->
@@ -382,15 +400,15 @@ class ChatDetailViewModel @Inject constructor(
                                 messages = state.messages.map { msg ->
                                     if (msg.id == event.messageId) {
                                         val currentReactions = msg.reactions.toMutableMap()
-                                        val existing = currentReactions[event.emoji] ?: com.shoonya.echo.features.chat.domain.model.Reaction(
+                                        val existing = currentReactions[event.emoji] ?: Reaction(
                                             count = 0,
                                             userNames = emptyList(),
-                                            hasReacted = false,
+                                            hasReacted = false
                                         )
                                         if (event.action == "add") {
                                             currentReactions[event.emoji] = existing.copy(
                                                 count = existing.count + 1,
-                                                hasReacted = true,
+                                                hasReacted = true
                                             )
                                         } else {
                                             val newCount = (existing.count - 1).coerceAtLeast(0)
@@ -399,7 +417,7 @@ class ChatDetailViewModel @Inject constructor(
                                             } else {
                                                 currentReactions[event.emoji] = existing.copy(
                                                     count = newCount,
-                                                    hasReacted = false,
+                                                    hasReacted = false
                                                 )
                                             }
                                         }
@@ -412,6 +430,7 @@ class ChatDetailViewModel @Inject constructor(
                         }
                     }
                 }
+
                 is DomainEvent.ReadReceipt -> {
                     if (event.chatId == resolvedChatId) {
                         _state.update { state ->
@@ -427,6 +446,7 @@ class ChatDetailViewModel @Inject constructor(
                         }
                     }
                 }
+
                 is DomainEvent.BackendError -> {
                     val message = com.shoonya.echo.core.util.ErrorMapper.mapBackendError(
                         event.code,
@@ -434,6 +454,7 @@ class ChatDetailViewModel @Inject constructor(
                     )
                     _events.emit(ChatDetailEvent.ShowSnackbar(message))
                 }
+
                 is DomainEvent.ResponseAck,
                 is DomainEvent.UserJoined,
                 is DomainEvent.UserLeft -> { /* handled by chat list or no-op in detail */ }
@@ -455,18 +476,16 @@ class ChatDetailViewModel @Inject constructor(
     }
 
     /** Merges existing and incoming messages, dedupes by id, and sorts oldest-first. */
-    private fun mergeMessages(
-        existing: List<Message>,
-        incoming: List<Message>,
-    ): List<Message> = (existing + incoming)
-        .distinctBy { it.id }
-        .sortedBy { it.createdAt }
+    private fun mergeMessages(existing: List<Message>, incoming: List<Message>): List<Message> =
+        (existing + incoming)
+            .distinctBy { it.id }
+            .sortedBy { it.createdAt }
 
     /** Replaces an optimistic placeholder (identified by [optimisticId]) with the server-confirmed [serverMessage]. */
     private fun replaceOptimistic(
         messages: List<Message>,
         optimisticId: String,
-        serverMessage: Message,
+        serverMessage: Message
     ): List<Message> = messages.map { msg ->
         if (msg.id == optimisticId) serverMessage else msg
     }
@@ -474,10 +493,8 @@ class ChatDetailViewModel @Inject constructor(
         .sortedBy { it.createdAt }
 
     /** Removes an optimistic placeholder by its [optimisticId] (e.g., on send failure). */
-    private fun removeOptimistic(
-        messages: List<Message>,
-        optimisticId: String,
-    ): List<Message> = messages.filter { it.id != optimisticId }
+    private fun removeOptimistic(messages: List<Message>, optimisticId: String): List<Message> =
+        messages.filter { it.id != optimisticId }
 }
 
 sealed interface ChatDetailEvent {

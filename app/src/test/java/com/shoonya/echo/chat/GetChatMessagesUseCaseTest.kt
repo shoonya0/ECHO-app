@@ -16,7 +16,7 @@ class GetChatMessagesUseCaseTest {
     fun `given messages exist, when invoked, then returns messages with total count`() = runTest {
         fakeRepo.setGetChatMessagesSuccess(
             listOf(TestData.message1, TestData.message2),
-            totalCount = 10,
+            totalCount = 10
         )
 
         val result = useCase(TestData.CHAT_ID_DIRECT, limit = 50, offset = 0)
