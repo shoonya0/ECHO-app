@@ -247,18 +247,19 @@ class ChatDetailViewModel @Inject constructor(
     }
 
     fun loadMore() {
-        val currentMessages = _state.value.messages
-        if (_state.value.isLoadingMore || !_state.value.hasMore) return
+        val cursor = _state.value.nextCursor
+        if (_state.value.isLoadingMore || !_state.value.hasMore || cursor == null) return
 
         viewModelScope.launch {
             _state.update { it.copy(isLoadingMore = true) }
-            getChatMessagesUseCase(resolvedChatId, offset = currentMessages.size)
-                .onSuccess { (newMessages, total) ->
+            getChatMessagesUseCase(resolvedChatId, before = cursor)
+                .onSuccess { page ->
                     _state.update {
                         it.copy(
                             isLoadingMore = false,
-                            messages = mergeMessages(it.messages, newMessages),
-                            totalCount = total
+                            messages = mergeMessages(it.messages, page.messages),
+                            hasMore = page.hasMore,
+                            nextCursor = page.nextCursor
                         )
                     }
                 }
@@ -307,16 +308,17 @@ class ChatDetailViewModel @Inject constructor(
         }
     }
 
-    private fun loadMessages(offset: Int = 0) {
+    private fun loadMessages() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = offset == 0, error = null) }
-            getChatMessagesUseCase(resolvedChatId, offset = offset)
-                .onSuccess { (messages, total) ->
+            _state.update { it.copy(isLoading = true, error = null) }
+            getChatMessagesUseCase(resolvedChatId)
+                .onSuccess { page ->
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            messages = messages,
-                            totalCount = total
+                            messages = page.messages,
+                            hasMore = page.hasMore,
+                            nextCursor = page.nextCursor
                         )
                     }
                 }

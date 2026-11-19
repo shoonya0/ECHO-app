@@ -15,14 +15,13 @@ data class MessageListResponse(
     val pagination: MessagePagination
 )
 
+/** Cursor paging: send [nextCursor] as `before` for the next (older) page while [hasMore]. */
 @Serializable
 data class MessagePagination(
-    val limit: Int,
-    val offset: Int,
-    val count: Int,
-    val totalCount: Int,
-    val page: Int,
-    val totalPages: Int
+    val limit: Int = 0,
+    val count: Int = 0,
+    val hasMore: Boolean = false,
+    val nextCursor: String? = null
 )
 
 @Serializable

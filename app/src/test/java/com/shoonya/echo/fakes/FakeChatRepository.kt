@@ -2,14 +2,17 @@ package com.shoonya.echo.fakes
 
 import com.shoonya.echo.features.chat.domain.model.Chat
 import com.shoonya.echo.features.chat.domain.model.Message
+import com.shoonya.echo.features.chat.domain.model.MessagePage
 import com.shoonya.echo.features.chat.domain.repository.ChatRepository
 
 class FakeChatRepository : ChatRepository {
     private var chatListResult: Result<List<Chat>> = Result.success(emptyList())
     private var createDirectChatResult: Result<Chat> = Result.failure(Exception("Not set"))
-    private var getChatMessagesResult: Result<Pair<List<Message>, Int>> = Result.success(
-        Pair(emptyList(), 0)
-    )
+    private var getChatMessagesResult: Result<MessagePage> =
+        Result.success(MessagePage(emptyList(), hasMore = false, nextCursor = null))
+
+    /** The `before` cursor of each getChatMessages call, in order. */
+    val getChatMessagesCursors = mutableListOf<String?>()
     private var sendMessageResult: Result<Message> = Result.failure(
         UnsupportedOperationException("Not implemented")
     )
@@ -32,8 +35,12 @@ class FakeChatRepository : ChatRepository {
         createDirectChatResult = Result.failure(Exception(message))
     }
 
-    fun setGetChatMessagesSuccess(messages: List<Message>, totalCount: Int) {
-        getChatMessagesResult = Result.success(Pair(messages, totalCount))
+    fun setGetChatMessagesSuccess(
+        messages: List<Message>,
+        hasMore: Boolean = false,
+        nextCursor: String? = null
+    ) {
+        getChatMessagesResult = Result.success(MessagePage(messages, hasMore, nextCursor))
     }
 
     fun setGetChatMessagesError(message: String) {
@@ -72,9 +79,13 @@ class FakeChatRepository : ChatRepository {
     override suspend fun getChatMessages(
         chatId: String,
         limit: Int,
-        offset: Int
-    ): Result<Pair<List<Message>, Int>> = getChatMessagesResult.map { (messages, total) ->
-        Pair(messages.sortedBy { it.createdAt }, total) // Normalize to oldest-first
+        before: String?
+    ): Result<MessagePage> {
+        getChatMessagesCursors += before
+        return getChatMessagesResult.map { page ->
+            // Normalize to oldest-first
+            page.copy(messages = page.messages.sortedBy { it.createdAt })
+        }
     }
 
     override suspend fun sendMessage(

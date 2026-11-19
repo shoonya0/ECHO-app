@@ -9,6 +9,7 @@ import com.shoonya.echo.features.chat.data.remote.ChatApiService
 import com.shoonya.echo.features.chat.data.remote.MessageApiService
 import com.shoonya.echo.features.chat.domain.model.Chat
 import com.shoonya.echo.features.chat.domain.model.Message
+import com.shoonya.echo.features.chat.domain.model.MessagePage
 import com.shoonya.echo.features.chat.domain.repository.ChatRepository
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -73,25 +74,27 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun getChatMessages(
         chatId: String,
         limit: Int,
-        offset: Int
-    ): Result<Pair<List<Message>, Int>> {
+        before: String?
+    ): Result<MessagePage> {
         val currentUserId = tokenStore.getUserId()
             ?: return Result.failure(IllegalStateException("User not authenticated"))
         return runCatching {
-            val response = messageApi.getChatMessages(chatId, limit, offset).toResult().getOrThrow()
+            val response = messageApi.getChatMessages(chatId, limit, before).toResult().getOrThrow()
             val messages = response.messages
                 .map { it.toMessage(currentUserId) }
-                .sortedBy { it.createdAt } // Normalize to oldest-first for WhatsApp-like ordering
-            Pair(messages, response.pagination.totalCount)
-        }.onSuccess { (messages, total) ->
-            Timber.tag(
-                "ChatRepo"
-            ).d(
-                "get messages success: %s (offset=%d, count=%d/%d)",
+                .sortedBy { it.createdAt } // server: newest first; UI: oldest first
+            MessagePage(
+                messages = messages,
+                hasMore = response.pagination.hasMore,
+                nextCursor = response.pagination.nextCursor
+            )
+        }.onSuccess { page ->
+            Timber.tag("ChatRepo").d(
+                "get messages success: %s (before=%s, count=%d, hasMore=%b)",
                 chatId,
-                offset,
-                messages.size,
-                total
+                before,
+                page.messages.size,
+                page.hasMore
             )
         }.onFailure { err ->
             Timber.tag("ChatRepo").e(err, "get messages failed: %s", chatId)
@@ -125,7 +128,7 @@ class ChatRepositoryImpl @Inject constructor(
         val currentUserId = tokenStore.getUserId()
             ?: return Result.failure(IllegalStateException("User not authenticated"))
         return runCatching {
-            val response = messageApi.getChatMessages(chatId, limit = 1, offset = 0)
+            val response = messageApi.getChatMessages(chatId, limit = 1)
                 .toResult()
                 .getOrNull()
             response?.messages?.firstOrNull()?.toMessage(currentUserId)

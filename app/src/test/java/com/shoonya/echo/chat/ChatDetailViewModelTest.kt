@@ -83,8 +83,7 @@ class ChatDetailViewModelTest {
     @Test
     fun `on init, loads messages successfully`() = runTest {
         fakeChatRepo.setGetChatMessagesSuccess(
-            listOf(TestData.message1, TestData.message2),
-            totalCount = 10
+            listOf(TestData.message1, TestData.message2)
         )
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
@@ -122,7 +121,7 @@ class ChatDetailViewModelTest {
 
     @Test
     fun `sendMessage optimistically appends message and clears input immediately`() = runTest {
-        fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
+        fakeChatRepo.setGetChatMessagesSuccess(emptyList())
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
             Result.success(
@@ -165,7 +164,7 @@ class ChatDetailViewModelTest {
 
     @Test
     fun `sendMessage failure restores input and removes optimistic message`() = runTest {
-        fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
+        fakeChatRepo.setGetChatMessagesSuccess(emptyList())
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
             Result.failure(RuntimeException("Connection lost"))
@@ -193,7 +192,7 @@ class ChatDetailViewModelTest {
 
     @Test
     fun `sendMessage failure after server broadcast keeps message and clears input`() = runTest {
-        fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
+        fakeChatRepo.setGetChatMessagesSuccess(emptyList())
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
             Result.success(
@@ -250,7 +249,7 @@ class ChatDetailViewModelTest {
     @Test
     fun `sendMessage timeout without broadcast keeps optimistic message and clears input`() =
         runTest {
-            fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
+            fakeChatRepo.setGetChatMessagesSuccess(emptyList())
             fakeChatRepo.setGetChatSuccess(TestData.directChat)
             fakeWsRepo.setSendResult(
                 Result.success(
@@ -284,7 +283,7 @@ class ChatDetailViewModelTest {
 
     @Test
     fun `ws NewMessage event appends message to state`() = runTest {
-        fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
+        fakeChatRepo.setGetChatMessagesSuccess(emptyList())
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
             Result.success(
@@ -307,7 +306,7 @@ class ChatDetailViewModelTest {
 
     @Test
     fun `ws TypingUpdate updates typingUserIds`() = runTest {
-        fakeChatRepo.setGetChatMessagesSuccess(emptyList(), 0)
+        fakeChatRepo.setGetChatMessagesSuccess(emptyList())
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
             Result.success(
@@ -329,8 +328,7 @@ class ChatDetailViewModelTest {
     @Test
     fun `ws ReadReceipt updates readByUserIds on messages`() = runTest {
         fakeChatRepo.setGetChatMessagesSuccess(
-            listOf(TestData.message2), // message2 has readByUserIds empty initially in test
-            totalCount = 1
+            listOf(TestData.message2) // message2 has readByUserIds empty initially in test
         )
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
@@ -400,8 +398,7 @@ class ChatDetailViewModelTest {
 
         // Simulate backend returning newest-first
         fakeChatRepo.setGetChatMessagesSuccess(
-            messages = listOf(newer, older),
-            totalCount = 2
+            messages = listOf(newer, older)
         )
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
         fakeWsRepo.setSendResult(
@@ -419,5 +416,73 @@ class ChatDetailViewModelTest {
         // Oldest first
         assertEquals("msg_older", state.messages.first().id)
         assertEquals("msg_newer", state.messages.last().id)
+    }
+
+    @Test
+    fun `first load asks for the newest page and keeps the server's cursor`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(
+            listOf(TestData.message1),
+            hasMore = true,
+            nextCursor = "cursor-1"
+        )
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+
+        createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(listOf<String?>(null), fakeChatRepo.getChatMessagesCursors)
+        assertTrue(viewModel.state.value.hasMore)
+        assertEquals("cursor-1", viewModel.state.value.nextCursor)
+    }
+
+    @Test
+    fun `loadMore sends the cursor as before and merges the older page`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(
+            listOf(TestData.message2),
+            hasMore = true,
+            nextCursor = TestData.message2.id
+        )
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+
+        fakeChatRepo.setGetChatMessagesSuccess(
+            listOf(TestData.message1),
+            hasMore = false,
+            nextCursor = null
+        )
+        viewModel.loadMore()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf<String?>(null, TestData.message2.id),
+            fakeChatRepo.getChatMessagesCursors
+        )
+        val state = viewModel.state.value
+        assertEquals(
+            setOf(TestData.message1.id, TestData.message2.id),
+            state.messages.map {
+                it.id
+            }.toSet()
+        )
+        assertFalse(state.hasMore)
+        assertEquals(null, state.nextCursor)
+    }
+
+    @Test
+    fun `loadMore on the last page asks for nothing`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(
+            listOf(TestData.message1),
+            hasMore = false,
+            nextCursor = null
+        )
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loadMore()
+        advanceUntilIdle()
+
+        assertEquals(listOf<String?>(null), fakeChatRepo.getChatMessagesCursors)
     }
 }
