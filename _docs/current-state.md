@@ -12,9 +12,9 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** none (a fix) · branch `fix/42-read-seqs` (backend #42): "read by" from `readSeqs`/`readUpToSeq`, live read receipts parse again; verify `--full` passed, 129/129 unit, 12/12 UI tests on the Pixel_5 AVD; not yet run against a live server. #7 merged (PR #8)
-- **Next step:** review + PR for #42, then tell the backend it can stop writing `readBy`; then the group invite screen (backend #5 step 2)
-- **Updated:** 2026-11-20 at `5ea0f1b`
+- **Feature:** none (a fix) · branch `fix/42-read-seqs` (backend #42): "read by" from `readSeqs`/`readUpToSeq`, live read receipts parse again, code-review fixes in; verify `--full` passed, 132/132 unit, 12/12 UI tests on the Pixel_5 AVD; not yet run against a live server. #7 merged (PR #8)
+- **Next step:** PR for #42, then tell the backend it can stop writing `readBy`; then the group invite screen (backend #5 step 2)
+- **Updated:** 2026-11-20 at `f866a9a`
 
 ## What a user can do today
 
@@ -94,8 +94,8 @@ candidate GitHub issue; filed ones link to it.
    - The app never sends `mark_read`: `ChatDetailViewModel.markMessagesRead` has no caller
      and the screen's "unread by me" effect discards its list (`ChatDetailScreen.kt:158`), so
      the other side never sees this user's reads (VERIFIED by grep; issue not filed yet).
-   - Missed messages (backend #43): the app ignores `seq` and never catches up with
-     `afterSeq` after a reconnect or a skipped number.
+   - Missed messages (backend #43): messages keep their `seq` (used for read state), but the
+     app never catches up with `afterSeq` after a reconnect or a skipped number.
    - Live `message` events carry `data.sender` (backend #50); the app still uses only the
      frame's `username`.
    - Group invites (backend #5): the server will soon refuse history and send to pending
