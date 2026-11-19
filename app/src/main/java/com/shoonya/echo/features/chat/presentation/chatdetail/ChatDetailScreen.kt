@@ -72,10 +72,7 @@ private sealed interface ChatListItem {
  * Builds a flat list of [ChatListItem] from a chronologically sorted (oldest-first) message list,
  * inserting a [DateSeparatorItem] whenever the calendar date changes between consecutive messages.
  */
-private fun buildChatListItems(
-    messages: List<Message>,
-    now: Instant,
-): List<ChatListItem> {
+private fun buildChatListItems(messages: List<Message>, now: Instant): List<ChatListItem> {
     if (messages.isEmpty()) return emptyList()
 
     val items = mutableListOf<ChatListItem>()
@@ -95,10 +92,7 @@ private fun buildChatListItems(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatDetailScreen(
-    onBack: () -> Unit,
-    viewModel: ChatDetailViewModel = hiltViewModel(),
-) {
+fun ChatDetailScreen(onBack: () -> Unit, viewModel: ChatDetailViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -125,7 +119,7 @@ fun ChatDetailScreen(
         onBack = onBack,
         onInputChanged = viewModel::onInputChanged,
         onSend = viewModel::sendMessage,
-        onLoadMore = viewModel::loadMore,
+        onLoadMore = viewModel::loadMore
     )
 }
 
@@ -147,7 +141,7 @@ internal fun ChatDetailContent(
     onBack: () -> Unit,
     onInputChanged: (String) -> Unit,
     onSend: () -> Unit,
-    onLoadMore: () -> Unit,
+    onLoadMore: () -> Unit
 ) {
     val listState = rememberLazyListState()
     val now = remember { Instant.now() }
@@ -181,7 +175,9 @@ internal fun ChatDetailContent(
 
     // Preserve scroll position during loadMore by anchoring the first visible pre-paginated item
     val savedItemKey = rememberSaveable { mutableStateOf<String?>(null) }
-    if (isLoadingMore && savedItemKey.value == null && listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
+    if (isLoadingMore && savedItemKey.value == null &&
+        listState.layoutInfo.visibleItemsInfo.isNotEmpty()
+    ) {
         savedItemKey.value = listState.layoutInfo.visibleItemsInfo.first().key as? String
     }
     LaunchedEffect(isLoadingMore) {
@@ -204,19 +200,19 @@ internal fun ChatDetailContent(
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = "Back"
                             )
                         }
-                    },
+                    }
                 )
                 // Connection status banner
                 AnimatedVisibility(
                     visible = connectionStatus in setOf(
                         WsConnectionStatus.RECONNECTING,
-                        WsConnectionStatus.FAILED,
+                        WsConnectionStatus.FAILED
                     ),
                     enter = fadeIn(),
-                    exit = fadeOut(),
+                    exit = fadeOut()
                 ) {
                     Box(
                         modifier = Modifier
@@ -228,7 +224,7 @@ internal fun ChatDetailContent(
                                     MaterialTheme.colorScheme.tertiary
                                 }
                             )
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
                     ) {
                         Text(
                             text = when (connectionStatus) {
@@ -237,7 +233,7 @@ internal fun ChatDetailContent(
                                 else -> ""
                             },
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onError,
+                            color = MaterialTheme.colorScheme.onError
                         )
                     }
                 }
@@ -249,13 +245,13 @@ internal fun ChatDetailContent(
                 AnimatedVisibility(
                     visible = typingUserIds.isNotEmpty(),
                     enter = fadeIn(),
-                    exit = fadeOut(),
+                    exit = fadeOut()
                 ) {
                     Text(
                         text = "Typing…",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     )
                 }
                 // Input bar
@@ -264,24 +260,24 @@ internal fun ChatDetailContent(
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surface)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
                         value = inputText,
                         onValueChange = onInputChanged,
                         placeholder = { Text("Type a message...") },
                         maxLines = 4,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = onSend,
-                        enabled = inputText.isNotBlank() && !isSending,
+                        enabled = inputText.isNotBlank() && !isSending
                     ) {
                         if (isSending) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
+                                strokeWidth = 2.dp
                             )
                         } else {
                             Icon(
@@ -291,13 +287,13 @@ internal fun ChatDetailContent(
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                                },
+                                }
                             )
                         }
                     }
                 }
             }
-        },
+        }
     ) { paddingValues ->
         when {
             isLoading -> {
@@ -305,39 +301,42 @@ internal fun ChatDetailContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
                 }
             }
+
             error != null && messages.isEmpty() -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = error,
                         color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 }
             }
+
             !isLoading && messages.isEmpty() -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "No messages yet. Say hello!",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+
             else -> {
                 LazyColumn(
                     state = listState,
@@ -345,7 +344,7 @@ internal fun ChatDetailContent(
                         .fillMaxSize()
                         .padding(paddingValues),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     if (isLoadingMore) {
                         item(key = "loading_more") {
@@ -353,11 +352,11 @@ internal fun ChatDetailContent(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(8.dp),
-                                contentAlignment = Alignment.Center,
+                                contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
+                                    strokeWidth = 2.dp
                                 )
                             }
                         }
@@ -365,15 +364,19 @@ internal fun ChatDetailContent(
 
                     items(chatItems, key = { item ->
                         when (item) {
-                            is ChatListItem.MessageItem -> item.message.id.ifBlank { item.message.createdAt.toString() }
+                            is ChatListItem.MessageItem -> item.message.id.ifBlank {
+                                item.message.createdAt.toString()
+                            }
+
                             is ChatListItem.DateSeparatorItem -> "sep_${item.label}"
                         }
                     }) { item ->
                         when (item) {
                             is ChatListItem.DateSeparatorItem -> DateSeparator(label = item.label)
+
                             is ChatListItem.MessageItem -> MessageBubble(
                                 message = item.message,
-                                isMine = item.message.senderId == currentUserId,
+                                isMine = item.message.senderId == currentUserId
                             )
                         }
                     }
@@ -386,28 +389,25 @@ internal fun ChatDetailContent(
 // ── Date separator composable ──
 
 @Composable
-private fun DateSeparator(
-    label: String,
-    modifier: Modifier = Modifier,
-) {
+private fun DateSeparator(label: String, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.Medium,
-                fontSize = 12.sp,
+                fontSize = 12.sp
             ),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp)
         )
     }
 }
@@ -415,20 +415,16 @@ private fun DateSeparator(
 // ── Message bubble ──
 
 @Composable
-private fun MessageBubble(
-    message: Message,
-    isMine: Boolean,
-    modifier: Modifier = Modifier,
-) {
+private fun MessageBubble(message: Message, isMine: Boolean, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp),
-        horizontalAlignment = if (isMine) Alignment.End else Alignment.Start,
+        horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
     ) {
         Row(
             horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
-            verticalAlignment = Alignment.Bottom,
+            verticalAlignment = Alignment.Bottom
         ) {
             Box(
                 modifier = Modifier
@@ -437,7 +433,7 @@ private fun MessageBubble(
                             topStart = if (isMine) 12.dp else 4.dp,
                             topEnd = 12.dp,
                             bottomStart = 12.dp,
-                            bottomEnd = if (isMine) 4.dp else 12.dp,
+                            bottomEnd = if (isMine) 4.dp else 12.dp
                         )
                     )
                     .background(
@@ -447,7 +443,7 @@ private fun MessageBubble(
                             MaterialTheme.colorScheme.surfaceVariant
                         }
                     )
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Column {
                     Text(
@@ -457,7 +453,7 @@ private fun MessageBubble(
                             MaterialTheme.colorScheme.onPrimary
                         } else {
                             MaterialTheme.colorScheme.onSurface
-                        },
+                        }
                     )
 
                     // Reactions row
@@ -468,12 +464,14 @@ private fun MessageBubble(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        .background(
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = "$emoji ${reaction.count}",
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = MaterialTheme.typography.labelSmall
                                     )
                                 }
                             }
@@ -483,7 +481,7 @@ private fun MessageBubble(
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
                             text = message.createdAt.toRelativeTime(),
@@ -492,7 +490,7 @@ private fun MessageBubble(
                                 MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
-                            },
+                            }
                         )
                         // Read receipt ticks for own messages
                         if (isMine) {
@@ -501,14 +499,14 @@ private fun MessageBubble(
                                     imageVector = Icons.Filled.DoneAll,
                                     contentDescription = "Read",
                                     modifier = Modifier.size(14.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                                    tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Filled.Check,
                                     contentDescription = "Sent",
                                     modifier = Modifier.size(14.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
+                                    tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                                 )
                             }
                         }
@@ -522,7 +520,11 @@ private fun MessageBubble(
 // ── Previews ──
 
 @Preview(name = "Light", showBackground = true)
-@Preview(name = "Dark", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun ChatDetailPreview() {
     EchoTheme {
@@ -543,7 +545,7 @@ private fun ChatDetailPreview() {
                     reactions = emptyMap(),
                     isEdited = false,
                     readByUserIds = emptySet(),
-                    createdAt = Instant.now().minusSeconds(1800),
+                    createdAt = Instant.now().minusSeconds(1800)
                 ),
                 Message(
                     id = "2",
@@ -555,11 +557,18 @@ private fun ChatDetailPreview() {
                     content = "I'm doing great! Just finished the project.",
                     type = MessageType.TEXT,
                     attachments = emptyList(),
-                    reactions = mutableMapOf("❤️" to com.shoonya.echo.features.chat.domain.model.Reaction(1, listOf("alice"), hasReacted = true)),
+                    reactions = mutableMapOf(
+                        "❤️" to
+                            com.shoonya.echo.features.chat.domain.model.Reaction(
+                                1,
+                                listOf("alice"),
+                                hasReacted = true
+                            )
+                    ),
                     isEdited = false,
                     readByUserIds = setOf("alice"),
-                    createdAt = Instant.now().minusSeconds(1200),
-                ),
+                    createdAt = Instant.now().minusSeconds(1200)
+                )
             ),
             isLoading = false,
             isLoadingMore = false,
@@ -573,7 +582,7 @@ private fun ChatDetailPreview() {
             onBack = {},
             onInputChanged = {},
             onSend = {},
-            onLoadMore = {},
+            onLoadMore = {}
         )
     }
 }
@@ -598,7 +607,7 @@ private fun ChatDetailEmptyPreview() {
             onBack = {},
             onInputChanged = {},
             onSend = {},
-            onLoadMore = {},
+            onLoadMore = {}
         )
     }
 }
@@ -623,7 +632,7 @@ private fun ChatDetailReconnectingPreview() {
             onBack = {},
             onInputChanged = {},
             onSend = {},
-            onLoadMore = {},
+            onLoadMore = {}
         )
     }
 }

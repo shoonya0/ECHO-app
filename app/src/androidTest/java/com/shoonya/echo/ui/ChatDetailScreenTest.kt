@@ -8,9 +8,9 @@ import com.shoonya.echo.features.chat.domain.model.Message
 import com.shoonya.echo.features.chat.domain.model.MessageType
 import com.shoonya.echo.features.chat.domain.repository.WsConnectionStatus
 import com.shoonya.echo.features.chat.presentation.chatdetail.ChatDetailContent
+import java.time.Instant
 import org.junit.Rule
 import org.junit.Test
-import java.time.Instant
 
 class ChatDetailScreenTest {
     @get:Rule
@@ -29,7 +29,7 @@ class ChatDetailScreenTest {
         reactions = emptyMap(),
         isEdited = false,
         readByUserIds = emptySet(),
-        createdAt = Instant.now().minusSeconds(300),
+        createdAt = Instant.now().minusSeconds(300)
     )
 
     @Test
@@ -52,7 +52,7 @@ class ChatDetailScreenTest {
                     onBack = {},
                     onInputChanged = {},
                     onSend = {},
-                    onLoadMore = {},
+                    onLoadMore = {}
                 )
             }
         }
@@ -86,7 +86,7 @@ class ChatDetailScreenTest {
                     onBack = {},
                     onInputChanged = {},
                     onSend = {},
-                    onLoadMore = {},
+                    onLoadMore = {}
                 )
             }
         }
@@ -116,7 +116,7 @@ class ChatDetailScreenTest {
                     onBack = {},
                     onInputChanged = {},
                     onSend = {},
-                    onLoadMore = {},
+                    onLoadMore = {}
                 )
             }
         }
