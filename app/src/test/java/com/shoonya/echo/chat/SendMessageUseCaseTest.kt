@@ -4,6 +4,7 @@ import com.shoonya.echo.fakes.FakeWebSocketRepository
 import com.shoonya.echo.features.chat.domain.model.MessageType
 import com.shoonya.echo.features.chat.domain.model.ResponseData
 import com.shoonya.echo.features.chat.domain.model.ServerFrame
+import com.shoonya.echo.features.chat.domain.model.WebSocketCommand
 import com.shoonya.echo.features.chat.domain.usecase.SendMessageUseCase
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -23,9 +24,9 @@ class SendMessageUseCaseTest {
                 success = true,
                 messageId = "msg_123",
                 chatId = "chat_1",
-                messageType = "text",
+                messageType = "text"
             ),
-            requestId = null,
+            requestId = null
         )
         fakeWsRepository.setSendResult(Result.success(responseFrame))
 
@@ -53,7 +54,7 @@ class SendMessageUseCaseTest {
     fun `send message tracks command in repository`() = runTest {
         val responseFrame = ServerFrame.Response(
             data = ResponseData(success = true, messageId = "msg_456"),
-            requestId = null,
+            requestId = null
         )
         fakeWsRepository.setSendResult(Result.success(responseFrame))
 
@@ -61,8 +62,8 @@ class SendMessageUseCaseTest {
 
         assertEquals(1, fakeWsRepository.sentCommands.size)
         val sentCommand = fakeWsRepository.sentCommands.first()
-        assertTrue(sentCommand is com.shoonya.echo.features.chat.domain.model.WebSocketCommand.SendMessage)
-        val sendCmd = sentCommand as com.shoonya.echo.features.chat.domain.model.WebSocketCommand.SendMessage
+        assertTrue(sentCommand is WebSocketCommand.SendMessage)
+        val sendCmd = sentCommand as WebSocketCommand.SendMessage
         assertEquals("chat_2", sendCmd.chatId)
         assertEquals("Hi", sendCmd.content)
     }

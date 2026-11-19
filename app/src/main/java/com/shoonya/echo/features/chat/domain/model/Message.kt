@@ -15,7 +15,7 @@ data class Message(
     val reactions: Map<String, Reaction>,
     val isEdited: Boolean,
     val readByUserIds: Set<String>,
-    val createdAt: Instant,
+    val createdAt: Instant
 )
 
 enum class MessageType {
@@ -23,7 +23,7 @@ enum class MessageType {
     IMAGE,
     FILE,
     AUDIO,
-    VIDEO,
+    VIDEO
 }
 
 data class Attachment(
@@ -31,11 +31,7 @@ data class Attachment(
     val name: String,
     val url: String,
     val mimeType: String,
-    val size: Long,
+    val size: Long
 )
 
-data class Reaction(
-    val count: Int,
-    val userNames: List<String>,
-    val hasReacted: Boolean,
-)
+data class Reaction(val count: Int, val userNames: List<String>, val hasReacted: Boolean)
