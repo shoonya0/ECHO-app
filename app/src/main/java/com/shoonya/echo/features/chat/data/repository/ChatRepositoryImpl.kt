@@ -9,17 +9,18 @@ import com.shoonya.echo.features.chat.data.remote.ChatApiService
 import com.shoonya.echo.features.chat.data.remote.MessageApiService
 import com.shoonya.echo.features.chat.domain.model.Chat
 import com.shoonya.echo.features.chat.domain.model.Message
+import com.shoonya.echo.features.chat.domain.model.MessagePage
 import com.shoonya.echo.features.chat.domain.repository.ChatRepository
-import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import timber.log.Timber
 
 @Singleton
 class ChatRepositoryImpl @Inject constructor(
     private val chatApi: ChatApiService,
     private val messageApi: MessageApiService,
     private val tokenStore: SecureTokenStore,
-    private val chatCache: ChatCache,
+    private val chatCache: ChatCache
 ) : ChatRepository {
 
     override suspend fun getChatList(contactIds: List<String>): Result<List<Chat>> {
@@ -41,7 +42,9 @@ class ChatRepositoryImpl @Inject constructor(
                     chats.add(chat.copy(lastMessage = preview))
                 }
             }.onFailure { err ->
-                Timber.tag("ChatRepo").e(err, "discover direct chat failed for contact: %s", contactId)
+                Timber.tag(
+                    "ChatRepo"
+                ).e(err, "discover direct chat failed for contact: %s", contactId)
             }
         }
 
@@ -71,18 +74,33 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun getChatMessages(
         chatId: String,
         limit: Int,
-        offset: Int,
-    ): Result<Pair<List<Message>, Int>> {
+        before: String?
+    ): Result<MessagePage> {
         val currentUserId = tokenStore.getUserId()
             ?: return Result.failure(IllegalStateException("User not authenticated"))
         return runCatching {
-            val response = messageApi.getChatMessages(chatId, limit, offset).toResult().getOrThrow()
+            val response = messageApi.getChatMessages(chatId, limit, before).toResult().getOrThrow()
             val messages = response.messages
                 .map { it.toMessage(currentUserId) }
-                .sortedBy { it.createdAt } // Normalize to oldest-first for WhatsApp-like ordering
-            Pair(messages, response.pagination.totalCount)
-        }.onSuccess { (messages, total) ->
-            Timber.tag("ChatRepo").d("get messages success: %s (offset=%d, count=%d/%d)", chatId, offset, messages.size, total)
+                .sortedBy { it.createdAt } // server: newest first; UI: oldest first
+            val pagination = response.pagination
+            if (pagination.hasMore && pagination.nextCursor == null) {
+                Timber.tag("ChatRepo").w("hasMore without nextCursor: %s", chatId)
+            }
+            MessagePage(
+                messages = messages,
+                // Without a cursor the next page can't be asked for: treat it as the last.
+                hasMore = pagination.hasMore && pagination.nextCursor != null,
+                nextCursor = pagination.nextCursor
+            )
+        }.onSuccess { page ->
+            Timber.tag("ChatRepo").d(
+                "get messages success: %s (before=%s, count=%d, hasMore=%b)",
+                chatId,
+                before,
+                page.messages.size,
+                page.hasMore
+            )
         }.onFailure { err ->
             Timber.tag("ChatRepo").e(err, "get messages failed: %s", chatId)
         }
@@ -91,12 +109,14 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun sendMessage(
         chatId: String,
         content: String,
-        messageType: String,
+        messageType: String
     ): Result<Message> {
         // REST-based send is not yet available — the backend only supports WebSocket message sending.
         // This returns a NOT_IMPLEMENTED error until Phase 5 wires the WebSocket.
         return Result.failure(
-            UnsupportedOperationException("Message sending is coming in Phase 5 (WebSocket). For now, use the WebSocket protocol.")
+            UnsupportedOperationException(
+                "Message sending is coming in Phase 5 (WebSocket). For now, use the WebSocket protocol."
+            )
         )
     }
 
@@ -113,7 +133,7 @@ class ChatRepositoryImpl @Inject constructor(
         val currentUserId = tokenStore.getUserId()
             ?: return Result.failure(IllegalStateException("User not authenticated"))
         return runCatching {
-            val response = messageApi.getChatMessages(chatId, limit = 1, offset = 0)
+            val response = messageApi.getChatMessages(chatId, limit = 1)
                 .toResult()
                 .getOrNull()
             response?.messages?.firstOrNull()?.toMessage(currentUserId)

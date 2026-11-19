@@ -8,7 +8,9 @@ data class ChatDetailUiState(
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val messages: List<Message> = emptyList(),
-    val totalCount: Int = 0,
+    val hasMore: Boolean = false,
+    /** Send as `before` to load the next older page; null when there is none. */
+    val nextCursor: String? = null,
     val chatName: String = "",
     val error: String? = null,
     val inputText: String = "",
@@ -17,7 +19,5 @@ data class ChatDetailUiState(
     val typingUserIds: Set<String> = emptySet(),
     val connectionStatus: WsConnectionStatus = WsConnectionStatus.DISCONNECTED,
     val chatType: ChatType? = null,
-    val isCreatingDirectChat: Boolean = false,
-) {
-    val hasMore: Boolean get() = messages.size < totalCount
-}
+    val isCreatingDirectChat: Boolean = false
+)

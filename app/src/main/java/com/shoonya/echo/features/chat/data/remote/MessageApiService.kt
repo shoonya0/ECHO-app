@@ -11,6 +11,8 @@ interface MessageApiService {
     suspend fun getChatMessages(
         @Path("chatId") chatId: String,
         @Query("limit") limit: Int = 50,
-        @Query("offset") offset: Int = 0,
+        // The previous page's `pagination.nextCursor`, as is; null for the newest page.
+        // Never send `offset`: the server answers 400 to it (issue #7).
+        @Query("before") before: String? = null
     ): ApiResponse<MessageListResponse>
 }

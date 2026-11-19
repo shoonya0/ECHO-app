@@ -13,18 +13,21 @@ class GetChatMessagesUseCaseTest {
     private val useCase = GetChatMessagesUseCase(fakeRepo)
 
     @Test
-    fun `given messages exist, when invoked, then returns messages with total count`() = runTest {
+    fun `given messages exist, when invoked, then returns the page and its cursor`() = runTest {
         fakeRepo.setGetChatMessagesSuccess(
             listOf(TestData.message1, TestData.message2),
-            totalCount = 10,
+            hasMore = true,
+            nextCursor = TestData.message1.id
         )
 
-        val result = useCase(TestData.CHAT_ID_DIRECT, limit = 50, offset = 0)
+        val result = useCase(TestData.CHAT_ID_DIRECT, limit = 50, before = "cursor")
 
         assertTrue(result.isSuccess)
-        val (messages, total) = result.getOrThrow()
-        assertEquals(2, messages.size)
-        assertEquals(10, total)
+        val page = result.getOrThrow()
+        assertEquals(2, page.messages.size)
+        assertTrue(page.hasMore)
+        assertEquals(TestData.message1.id, page.nextCursor)
+        assertEquals(listOf<String?>("cursor"), fakeRepo.getChatMessagesCursors)
     }
 
     @Test
