@@ -12,9 +12,9 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** none (a fix) · branch `fix/7-cursor-paging` ([#7](https://github.com/shoonya0/ECHO-app/issues/7)): history pages with `before`/`nextCursor`, scrolling up loads older pages (review fixes); verify `--full` passed, 120/120 unit tests, 12/12 UI tests on the Pixel_5 AVD; not yet run against a live server
-- **Next step:** PR for #7, then `fix/42-read-seqs` (read state from `readSeqs`, backend #42), then the group invite screen (backend #5 step 2)
-- **Updated:** 2026-11-20 at `7eeb55f`
+- **Feature:** none (a fix) · branch `fix/42-read-seqs` (backend #42): "read by" from `readSeqs`/`readUpToSeq`, live read receipts parse again, code-review fixes in; verify `--full` passed, 132/132 unit, 12/12 UI tests on the Pixel_5 AVD; not yet run against a live server. #7 merged (PR #8)
+- **Next step:** PR for #42, then tell the backend it can stop writing `readBy`; then the group invite screen (backend #5 step 2)
+- **Updated:** 2026-11-20 at `f866a9a`
 
 ## What a user can do today
 
@@ -88,12 +88,14 @@ candidate GitHub issue; filed ones link to it.
    - Contact lists come in pages: the app reads only the first page (`limit = 50`,
      `ContactsApiService.kt:15-32`).
    - Message history: the server rejects `offset` with `400`, so history never loaded
-     ([#7](https://github.com/shoonya0/ECHO-app/issues/7), fixed on `fix/7-cursor-paging`).
-   - Read state (backend #42): "read by" still comes from each message's `readBy`
-     (`MessageDto.kt`); the server will stop writing it once the app reads `readSeqs` and
-     `delivery.readUpToSeq`. Tell the backend when the app has switched.
-   - Missed messages (backend #43): the app ignores `seq` and never catches up with
-     `afterSeq` after a reconnect or a skipped number.
+     ([#7](https://github.com/shoonya0/ECHO-app/issues/7), fixed in PR #8).
+   - Read state (backend #42): handled on `fix/42-read-seqs` ("read by" from `readSeqs` and
+     `delivery.readUpToSeq`). Once merged, tell the backend it can stop writing `readBy`.
+   - The app never sends `mark_read`: `ChatDetailViewModel.markMessagesRead` has no caller
+     and the screen's "unread by me" effect discards its list (`ChatDetailScreen.kt:158`), so
+     the other side never sees this user's reads (VERIFIED by grep; issue not filed yet).
+   - Missed messages (backend #43): messages keep their `seq` (used for read state), but the
+     app never catches up with `afterSeq` after a reconnect or a skipped number.
    - Live `message` events carry `data.sender` (backend #50); the app still uses only the
      frame's `username`.
    - Group invites (backend #5): the server will soon refuse history and send to pending

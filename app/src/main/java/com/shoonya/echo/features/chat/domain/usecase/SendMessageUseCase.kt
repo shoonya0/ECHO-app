@@ -9,9 +9,7 @@ import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 
-class SendMessageUseCase @Inject constructor(
-    private val wsRepository: WebSocketRepository,
-) {
+class SendMessageUseCase @Inject constructor(private val wsRepository: WebSocketRepository) {
     private fun generateRequestId(): String = UUID.randomUUID().toString().take(8)
 
     suspend operator fun invoke(
@@ -19,13 +17,13 @@ class SendMessageUseCase @Inject constructor(
         content: String,
         senderId: String,
         messageType: String = "text",
-        requestId: String = generateRequestId(),
+        requestId: String = generateRequestId()
     ): Result<Message> {
         val command = WebSocketCommand.SendMessage(
             chatId = chatId,
             content = content,
             messageType = messageType,
-            requestId = requestId,
+            requestId = requestId
         )
 
         return wsRepository.send(command).map { frame ->
@@ -44,7 +42,9 @@ class SendMessageUseCase @Inject constructor(
                     isEdited = false,
                     readByUserIds = emptySet(),
                     createdAt = Instant.now(),
+                    seq = frame.data.data?.seq
                 )
+
                 else -> throw IllegalStateException("Unexpected response frame: ${frame.type}")
             }
         }

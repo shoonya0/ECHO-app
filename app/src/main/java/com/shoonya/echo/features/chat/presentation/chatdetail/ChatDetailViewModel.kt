@@ -9,6 +9,7 @@ import com.shoonya.echo.features.chat.domain.model.DomainEvent
 import com.shoonya.echo.features.chat.domain.model.Message
 import com.shoonya.echo.features.chat.domain.model.PresenceStatus
 import com.shoonya.echo.features.chat.domain.model.Reaction
+import com.shoonya.echo.features.chat.domain.model.withReadState
 import com.shoonya.echo.features.chat.domain.repository.WebSocketRepository
 import com.shoonya.echo.features.chat.domain.repository.WsConnectionStatus
 import com.shoonya.echo.features.chat.domain.usecase.AddReactionUseCase
@@ -185,7 +186,11 @@ class ChatDetailViewModel @Inject constructor(
                         _state.update {
                             it.copy(
                                 isSending = false,
-                                messages = replaceOptimistic(it.messages, requestId, serverMessage)
+                                messages = replaceOptimistic(
+                                    it.messages,
+                                    requestId,
+                                    serverMessage.withReadState(it.readSeqs)
+                                )
                             )
                         }
                     }
@@ -255,11 +260,14 @@ class ChatDetailViewModel @Inject constructor(
             getChatMessagesUseCase(resolvedChatId, before = cursor)
                 .onSuccess { page ->
                     _state.update {
+                        val readSeqs = mergeReadSeqs(it.readSeqs, page.readSeqs)
                         it.copy(
                             isLoadingMore = false,
-                            messages = mergeMessages(it.messages, page.messages),
+                            messages = mergeMessages(it.messages, page.messages)
+                                .map { msg -> msg.withReadState(readSeqs) },
                             hasMore = page.hasMore,
-                            nextCursor = page.nextCursor
+                            nextCursor = page.nextCursor,
+                            readSeqs = readSeqs
                         )
                     }
                 }
@@ -314,11 +322,15 @@ class ChatDetailViewModel @Inject constructor(
             getChatMessagesUseCase(resolvedChatId)
                 .onSuccess { page ->
                     _state.update {
+                        // Merge, don't replace: a read receipt may have arrived during the load,
+                        // and the page's readSeqs can be the older value.
+                        val readSeqs = mergeReadSeqs(it.readSeqs, page.readSeqs)
                         it.copy(
                             isLoading = false,
-                            messages = page.messages,
+                            messages = page.messages.map { msg -> msg.withReadState(readSeqs) },
                             hasMore = page.hasMore,
-                            nextCursor = page.nextCursor
+                            nextCursor = page.nextCursor,
+                            readSeqs = readSeqs
                         )
                     }
                 }
@@ -353,7 +365,10 @@ class ChatDetailViewModel @Inject constructor(
                         }
 
                         _state.update { state ->
+                            // withReadState on the merged list: the event may fill in the seq of
+                            // a copy already shown (an ack that came before this broadcast).
                             var messages = mergeMessages(state.messages, listOf(message))
+                                .map { msg -> msg.withReadState(state.readSeqs) }
                             if (matchedRequestId != null) {
                                 messages = messages.filterNot { it.id == matchedRequestId }
                             }
@@ -436,14 +451,15 @@ class ChatDetailViewModel @Inject constructor(
                 is DomainEvent.ReadReceipt -> {
                     if (event.chatId == resolvedChatId) {
                         _state.update { state ->
+                            val readSeqs = mergeReadSeqs(
+                                state.readSeqs,
+                                mapOf(event.userId to event.readUpToSeq)
+                            )
                             state.copy(
                                 messages = state.messages.map { msg ->
-                                    if (msg.id in event.messageIds) {
-                                        msg.copy(readByUserIds = msg.readByUserIds + event.userId)
-                                    } else {
-                                        msg
-                                    }
-                                }
+                                    msg.withReadState(readSeqs)
+                                },
+                                readSeqs = readSeqs
                             )
                         }
                     }
@@ -477,11 +493,30 @@ class ChatDetailViewModel @Inject constructor(
         }
     }
 
-    /** Merges existing and incoming messages, dedupes by id, and sorts oldest-first. */
-    private fun mergeMessages(existing: List<Message>, incoming: List<Message>): List<Message> =
-        (existing + incoming)
+    /** Keeps each member's highest read seq: the server's value never goes down (#42). */
+    private fun mergeReadSeqs(
+        current: Map<String, Long>,
+        incoming: Map<String, Long>
+    ): Map<String, Long> = (current.keys + incoming.keys).associateWith { userId ->
+        maxOf(current[userId] ?: 0L, incoming[userId] ?: 0L)
+    }
+
+    /**
+     * Merges existing and incoming messages, dedupes by id, and sorts oldest-first. A message
+     * already shown keeps its copy but takes the incoming seq if it had none, since read state
+     * depends on it (an ack can arrive without the seq before the live event that has it).
+     */
+    private fun mergeMessages(existing: List<Message>, incoming: List<Message>): List<Message> {
+        val incomingById = incoming.associateBy { it.id }
+        val updated = existing.map { old ->
+            val new = incomingById[old.id]
+            if (old.seq == null && new?.seq != null) old.copy(seq = new.seq) else old
+        }
+        val existingIds = existing.mapTo(HashSet()) { it.id }
+        return (updated + incoming.filter { it.id !in existingIds })
             .distinctBy { it.id }
             .sortedBy { it.createdAt }
+    }
 
     /** Replaces an optimistic placeholder (identified by [optimisticId]) with the server-confirmed [serverMessage]. */
     private fun replaceOptimistic(

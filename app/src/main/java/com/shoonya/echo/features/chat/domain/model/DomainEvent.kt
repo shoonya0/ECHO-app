@@ -4,10 +4,19 @@ import java.time.Instant
 
 sealed interface DomainEvent {
     data class NewMessage(val chatId: String, val message: Message) : DomainEvent
-    data class TypingUpdate(val chatId: String, val userId: String, val isTyping: Boolean) : DomainEvent
+    data class TypingUpdate(val chatId: String, val userId: String, val isTyping: Boolean) :
+        DomainEvent
     data class PresenceUpdate(val userId: String, val status: PresenceStatus) : DomainEvent
-    data class ReactionUpdate(val chatId: String, val messageId: String, val emoji: String, val action: String) : DomainEvent
-    data class ReadReceipt(val chatId: String, val messageIds: List<String>, val userId: String) : DomainEvent
+    data class ReactionUpdate(
+        val chatId: String,
+        val messageId: String,
+        val emoji: String,
+        val action: String
+    ) : DomainEvent
+
+    /** [userId] has read every message up to [readUpToSeq] in [chatId]. */
+    data class ReadReceipt(val chatId: String, val userId: String, val readUpToSeq: Long) :
+        DomainEvent
     data class UserJoined(val chatId: String, val userId: String) : DomainEvent
     data class UserLeft(val chatId: String, val userId: String) : DomainEvent
     data class ResponseAck(val requestId: String, val messageId: String?) : DomainEvent
@@ -20,7 +29,8 @@ fun MessageData.toMessage(currentUserId: String? = null): Message = Message(
     id = id,
     chatId = chatId,
     senderId = senderId,
-    senderName = "", // MessageData doesn't carry sender metadata; populated from the enclosing ChatMessage frame
+    // MessageData doesn't carry sender metadata; populated from the enclosing ChatMessage frame
+    senderName = "",
     senderDisplayName = "",
     senderAvatar = "",
     content = content,
@@ -37,32 +47,52 @@ fun MessageData.toMessage(currentUserId: String? = null): Message = Message(
             name = att.originalName,
             url = att.url,
             mimeType = att.mimeType,
-            size = att.size,
+            size = att.size
         )
     },
     reactions = emptyMap(),
     isEdited = false,
     readByUserIds = emptySet(),
     createdAt = createdAt?.let { Instant.parse(it) } ?: Instant.EPOCH,
+    seq = seq
 )
 
 fun ServerFrame.toDomainEvent(): DomainEvent = when (this) {
     is ServerFrame.ChatMessage -> {
         val message = data.toMessage().copy(
             senderName = username,
-            senderDisplayName = username,
+            senderDisplayName = username
         )
         DomainEvent.NewMessage(chatId, message)
     }
+
     is ServerFrame.Typing -> DomainEvent.TypingUpdate(chatId, userId, data.isTyping)
+
     is ServerFrame.Presence -> DomainEvent.PresenceUpdate(
         userId,
-        try { PresenceStatus.valueOf(data.status.uppercase()) } catch (_: Exception) { PresenceStatus.OFFLINE }
+        try {
+            PresenceStatus.valueOf(data.status.uppercase())
+        } catch (
+            _: Exception
+        ) {
+            PresenceStatus.OFFLINE
+        }
     )
-    is ServerFrame.Reaction -> DomainEvent.ReactionUpdate(chatId, data.messageId, data.emoji, data.action)
-    is ServerFrame.Delivery -> DomainEvent.ReadReceipt(chatId, data.messageIds, data.userId)
+
+    is ServerFrame.Reaction -> DomainEvent.ReactionUpdate(
+        chatId,
+        data.messageId,
+        data.emoji,
+        data.action
+    )
+
+    is ServerFrame.Delivery -> DomainEvent.ReadReceipt(chatId, userId, data.readUpToSeq)
+
     is ServerFrame.Join -> DomainEvent.UserJoined(chatId, userId)
+
     is ServerFrame.Leave -> DomainEvent.UserLeft(chatId, userId)
+
     is ServerFrame.Response -> DomainEvent.ResponseAck(requestId ?: "", data.messageId)
+
     is ServerFrame.Error -> DomainEvent.BackendError(data.code, data.message)
 }
