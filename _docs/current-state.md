@@ -12,9 +12,9 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** none (a fix) · branch `fix/7-cursor-paging` ([#7](https://github.com/shoonya0/ECHO-app/issues/7)): history pages with `before`/`nextCursor`; verify `--full` passed, 119/119 unit tests, not yet run against a live server
+- **Feature:** none (a fix) · branch `fix/7-cursor-paging` ([#7](https://github.com/shoonya0/ECHO-app/issues/7)): history pages with `before`/`nextCursor`, scrolling up loads older pages (review fixes); verify `--full` passed, 120/120 unit tests, 12/12 UI tests on the Pixel_5 AVD; not yet run against a live server
 - **Next step:** PR for #7, then `fix/42-read-seqs` (read state from `readSeqs`, backend #42), then the group invite screen (backend #5 step 2)
-- **Updated:** 2026-11-20 at `95759ac`
+- **Updated:** 2026-11-20 at `7eeb55f`
 
 ## What a user can do today
 
