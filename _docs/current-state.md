@@ -12,9 +12,9 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** none yet (set by `/feature-docs start`) · AI harness merged to `main` (PR #5)
-- **Next step:** Task 1 below: a test seam for the WebSocket layer, then pin its behaviour
-- **Updated:** 2026-11-18 at `75cb041`
+- **Feature:** none (a fix) · branch `fix/7-cursor-paging` ([#7](https://github.com/shoonya0/ECHO-app/issues/7)): history pages with `before`/`nextCursor`; verify `--full` passed, 119/119 unit tests, not yet run against a live server
+- **Next step:** PR for #7, then `fix/42-read-seqs` (read state from `readSeqs`, backend #42), then the group invite screen (backend #5 step 2)
+- **Updated:** 2026-11-20 at `95759ac`
 
 ## What a user can do today
 
@@ -87,6 +87,18 @@ candidate GitHub issue; filed ones link to it.
    - `RATE_LIMITED` errors: no retry or backoff; `set_typing` isn't debounced (ASSUMED).
    - Contact lists come in pages: the app reads only the first page (`limit = 50`,
      `ContactsApiService.kt:15-32`).
+   - Message history: the server rejects `offset` with `400`, so history never loaded
+     ([#7](https://github.com/shoonya0/ECHO-app/issues/7), fixed on `fix/7-cursor-paging`).
+   - Read state (backend #42): "read by" still comes from each message's `readBy`
+     (`MessageDto.kt`); the server will stop writing it once the app reads `readSeqs` and
+     `delivery.readUpToSeq`. Tell the backend when the app has switched.
+   - Missed messages (backend #43): the app ignores `seq` and never catches up with
+     `afterSeq` after a reconnect or a skipped number.
+   - Live `message` events carry `data.sender` (backend #50); the app still uses only the
+     frame's `username`.
+   - Group invites (backend #5): the server will soon refuse history and send to pending
+     members. The app has no groups yet, so it needs an invite screen
+     (`GET groups/pending`, accept/decline) before the server switches that on.
 5. **Auto-backup of the encrypted prefs** ([#4](https://github.com/shoonya0/ECHO-app/issues/4); ASSUMED, known Android behaviour):
    `android:allowBackup="true"` with the default `backup_rules.xml` backs up
    `echo_secure_prefs` but not its Keystore key; after a restore to a new device,
