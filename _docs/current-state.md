@@ -12,9 +12,9 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** none (a fix) · branch `fix/42-read-seqs` (backend #42): "read by" from `readSeqs`/`readUpToSeq`, live read receipts parse again, code-review fixes in; verify `--full` passed, 132/132 unit, 12/12 UI tests on the Pixel_5 AVD; not yet run against a live server. #7 merged (PR #8)
-- **Next step:** PR for #42, then tell the backend it can stop writing `readBy`; then the group invite screen (backend #5 step 2)
-- **Updated:** 2026-11-20 at `f866a9a`
+- **Feature:** none · #7 (PR #8) and the app side of backend #42 (PR #9) are merged; open app bugs [#10](https://github.com/shoonya0/ECHO-app/issues/10) (`mark_read` never sent) and [#11](https://github.com/shoonya0/ECHO-app/issues/11) (messages lost during history load)
+- **Next step:** tell the backend it can stop writing `readBy` (#42); then the group invite screen (backend #5 step 2) or #10
+- **Updated:** 2026-11-20 at `f98db4c`
 
 ## What a user can do today
 
@@ -89,11 +89,12 @@ candidate GitHub issue; filed ones link to it.
      `ContactsApiService.kt:15-32`).
    - Message history: the server rejects `offset` with `400`, so history never loaded
      ([#7](https://github.com/shoonya0/ECHO-app/issues/7), fixed in PR #8).
-   - Read state (backend #42): handled on `fix/42-read-seqs` ("read by" from `readSeqs` and
-     `delivery.readUpToSeq`). Once merged, tell the backend it can stop writing `readBy`.
-   - The app never sends `mark_read`: `ChatDetailViewModel.markMessagesRead` has no caller
-     and the screen's "unread by me" effect discards its list (`ChatDetailScreen.kt:158`), so
-     the other side never sees this user's reads (VERIFIED by grep; issue not filed yet).
+   - Read state (backend #42): handled in PR #9 ("read by" from `readSeqs` and
+     `delivery.readUpToSeq`); the backend can stop writing `readBy`.
+   - The app never sends `mark_read` ([#10](https://github.com/shoonya0/ECHO-app/issues/10)):
+     the other side never sees this user's reads.
+   - Messages that arrive while history loads disappear
+     ([#11](https://github.com/shoonya0/ECHO-app/issues/11)).
    - Missed messages (backend #43): messages keep their `seq` (used for read state), but the
      app never catches up with `afterSeq` after a reconnect or a skipped number.
    - Live `message` events carry `data.sender` (backend #50); the app still uses only the
