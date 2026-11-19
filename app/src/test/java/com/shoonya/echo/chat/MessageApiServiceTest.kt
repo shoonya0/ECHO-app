@@ -2,7 +2,9 @@ package com.shoonya.echo.chat
 
 import com.shoonya.echo.core.data.remote.NetworkModule
 import com.shoonya.echo.features.chat.data.remote.MessageApiService
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.SerializationException
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -13,6 +15,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import retrofit2.Retrofit
@@ -76,6 +79,18 @@ class MessageApiServiceTest {
 
         assertFalse(data.pagination.hasMore)
         assertNull(data.pagination.nextCursor)
+    }
+
+    @Test
+    fun `reply without hasMore fails instead of passing as the last page`() {
+        replyBody = """
+            {"success":true,"data":{"chat":"c1","messages":[],
+              "pagination":{"limit":50,"count":0,"totalCount":0}}}
+        """.trimIndent()
+
+        assertThrows(SerializationException::class.java) {
+            runBlocking { api.getChatMessages(CHAT_ID) }
+        }
     }
 
     private companion object {

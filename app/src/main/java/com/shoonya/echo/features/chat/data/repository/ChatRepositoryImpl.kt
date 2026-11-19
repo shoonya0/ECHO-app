@@ -83,10 +83,15 @@ class ChatRepositoryImpl @Inject constructor(
             val messages = response.messages
                 .map { it.toMessage(currentUserId) }
                 .sortedBy { it.createdAt } // server: newest first; UI: oldest first
+            val pagination = response.pagination
+            if (pagination.hasMore && pagination.nextCursor == null) {
+                Timber.tag("ChatRepo").w("hasMore without nextCursor: %s", chatId)
+            }
             MessagePage(
                 messages = messages,
-                hasMore = response.pagination.hasMore,
-                nextCursor = response.pagination.nextCursor
+                // Without a cursor the next page can't be asked for: treat it as the last.
+                hasMore = pagination.hasMore && pagination.nextCursor != null,
+                nextCursor = pagination.nextCursor
             )
         }.onSuccess { page ->
             Timber.tag("ChatRepo").d(

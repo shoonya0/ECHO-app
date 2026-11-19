@@ -15,12 +15,16 @@ data class MessageListResponse(
     val pagination: MessagePagination
 )
 
-/** Cursor paging: send [nextCursor] as `before` for the next (older) page while [hasMore]. */
+/**
+ * Cursor paging: send [nextCursor] as `before` for the next (older) page while [hasMore].
+ * [hasMore] has no default, so a reply without it fails to parse instead of passing as the
+ * last page: the contract drift behind #7 would have been silent otherwise.
+ */
 @Serializable
 data class MessagePagination(
+    val hasMore: Boolean,
     val limit: Int = 0,
     val count: Int = 0,
-    val hasMore: Boolean = false,
     val nextCursor: String? = null
 )
 
