@@ -67,7 +67,10 @@ class ChatDetailViewModel @Inject constructor(
     private val _events = MutableSharedFlow<ChatDetailEvent>()
     val events: SharedFlow<ChatDetailEvent> = _events.asSharedFlow()
 
-    private var typingJob: Job? = null
+    // set_typing throttle (#3): whether a `true` is out, its refresh window, and the idle timer.
+    private var typingSent = false
+    private var typingRefreshJob: Job? = null
+    private var typingIdleJob: Job? = null
 
     // Tracks in-flight optimistic sends: requestId -> message content.
     // Used to reconcile a server broadcast of our own sent message (which may
@@ -150,29 +153,42 @@ class ChatDetailViewModel @Inject constructor(
 
     fun onInputChanged(text: String) {
         _state.update { it.copy(inputText = text) }
-
-        // Debounced typing indicator: 300ms
-        typingJob?.cancel()
-        if (text.isNotBlank()) {
-            typingJob = viewModelScope.launch {
-                delay(300)
-                setTypingUseCase(resolvedChatId, isTyping = true)
-            }
-        } else {
-            viewModelScope.launch {
-                setTypingUseCase(resolvedChatId, isTyping = false)
-            }
+        if (text.isBlank()) {
+            stopTyping()
+            return
         }
+        // The server rate-limits each socket (#3): one `true` when typing starts, again only
+        // once per TYPING_REFRESH_MS while it goes on, and one `false` when it stops.
+        if (!typingSent || typingRefreshJob?.isActive != true) {
+            typingSent = true
+            sendTyping(true)
+            typingRefreshJob = viewModelScope.launch { delay(TYPING_REFRESH_MS) }
+        }
+        typingIdleJob?.cancel()
+        typingIdleJob = viewModelScope.launch {
+            delay(TYPING_IDLE_MS)
+            stopTyping()
+        }
+    }
+
+    /** Sends `set_typing false`, only if a `true` went out since the last stop. */
+    private fun stopTyping() {
+        typingIdleJob?.cancel()
+        typingRefreshJob?.cancel()
+        if (!typingSent) return
+        typingSent = false
+        sendTyping(false)
+    }
+
+    private fun sendTyping(isTyping: Boolean) {
+        viewModelScope.launch { setTypingUseCase(resolvedChatId, isTyping) }
     }
 
     fun sendMessage() {
         val text = _state.value.inputText.trim()
         if (text.isBlank()) return
 
-        // Stop typing indicator
-        viewModelScope.launch {
-            setTypingUseCase(resolvedChatId, isTyping = false)
-        }
+        stopTyping()
 
         val requestId = java.util.UUID.randomUUID().toString().take(8)
         val optimisticMessage = Message(
@@ -481,7 +497,8 @@ class ChatDetailViewModel @Inject constructor(
                 }
 
                 is DomainEvent.TypingUpdate -> {
-                    if (event.chatId == resolvedChatId) {
+                    // The server echoes `typing` to the sender too (#31): skip our own.
+                    if (event.chatId == resolvedChatId && event.userId != currentUserId) {
                         if (event.isTyping) {
                             _state.update {
                                 it.copy(typingUserIds = it.typingUserIds + event.userId)
@@ -642,6 +659,12 @@ private const val MARK_READ_THROTTLE_MS = 300L
 private const val MARK_READ_RETRY_MS = 2_000L
 private const val MARK_READ_TIMEOUT_MS = 10_000L
 private const val MARK_READ_MAX_TIMEOUTS = 3
+
+// While the user keeps typing, `set_typing true` goes out again at most this often.
+private const val TYPING_REFRESH_MS = 3_000L
+
+// No keystroke for this long ends typing with `set_typing false`.
+private const val TYPING_IDLE_MS = 3_000L
 
 // Errors after which a later mark_read can work; others (blocked, not a member) won't change.
 private val RETRYABLE_READ_ERRORS = setOf("RATE_LIMITED", "READ_FAILED")
