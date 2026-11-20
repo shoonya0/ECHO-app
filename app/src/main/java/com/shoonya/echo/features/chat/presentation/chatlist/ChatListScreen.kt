@@ -19,10 +19,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -69,16 +69,13 @@ fun ChatListScreen(
     onChatClicked: (String) -> Unit,
     onCreateDirectChat: (String) -> Unit = {},
     onNewChat: () -> Unit = {},
-    onSuggestionsClicked: () -> Unit = {},
+    onSuggestionsClicked: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(contactIds) {
-        viewModel.loadChats(contactIds)
-    }
-
-    // Robust guarantee: re-fetch chat list whenever Chats tab becomes visible,
-    // even if contact IDs are unchanged (covers edge cases after contact refresh).
+    // Loads on first show, whenever the Chats tab resumes, and when the contacts change while it
+    // is shown (a new key re-runs the effect). A LaunchedEffect(contactIds) next to it made
+    // every first show load twice (#29).
     LifecycleResumeEffect(contactIds) {
         viewModel.loadChats(contactIds)
         onPauseOrDispose { /* no-op */ }
@@ -104,7 +101,7 @@ fun ChatListScreen(
         onCreateDirectChat = onCreateDirectChat,
         onNewChat = onNewChat,
         onSuggestionsClicked = onSuggestionsClicked,
-        onToggleFavorite = onToggleFavorite,
+        onToggleFavorite = onToggleFavorite
     )
 }
 
@@ -121,7 +118,7 @@ internal fun ChatListContent(
     onCreateDirectChat: (String) -> Unit,
     onNewChat: () -> Unit = {},
     onSuggestionsClicked: () -> Unit = {},
-    onToggleFavorite: (String) -> Unit = {},
+    onToggleFavorite: (String) -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -131,79 +128,81 @@ internal fun ChatListContent(
                     IconButton(onClick = onSuggestionsClicked) {
                         Icon(
                             imageVector = Icons.Default.PersonAdd,
-                            contentDescription = "Suggestions",
+                            contentDescription = "Suggestions"
                         )
                     }
-                },
+                }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onSuggestionsClicked) {
                 Icon(
                     imageVector = Icons.Default.Edit,
-                    contentDescription = "New chat",
+                    contentDescription = "New chat"
                 )
             }
-        },
+        }
     ) { paddingValues ->
         PullToRefreshBox(
             isRefreshing = isLoading,
             onRefresh = onRefresh,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(paddingValues)
         ) {
             when {
                 error != null && chats.isEmpty() && favorites.isEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = error,
                             color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyLarge
                         )
                     }
                 }
+
                 !isLoading && chats.isEmpty() && favorites.isEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
+                        contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = "No chats yet",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Start a chat from the + button",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
+
                 else -> {
                     LazyColumn(
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
                         items(chats, key = { it.id }) { chat ->
                             ChatListItem(
                                 chat = chat,
-                                onClick = { onChatClicked(chat.id) },
+                                onClick = { onChatClicked(chat.id) }
                             )
                             ChatStarToggle(
                                 chat = chat,
                                 favorites = favorites,
                                 currentUserId = currentUserId,
-                                onToggleFavorite = onToggleFavorite,
+                                onToggleFavorite = onToggleFavorite
                             )
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = 72.dp),
-                                thickness = 0.5.dp,
+                                thickness = 0.5.dp
                             )
                         }
                     }
@@ -218,7 +217,7 @@ private fun ChatStarToggle(
     chat: Chat,
     favorites: List<Contact>,
     currentUserId: String,
-    onToggleFavorite: (String) -> Unit,
+    onToggleFavorite: (String) -> Unit
 ) {
     // Only show star toggle on direct chats
     if (chat.type != ChatType.DIRECT) return
@@ -236,43 +235,47 @@ private fun ChatStarToggle(
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
+        horizontalArrangement = Arrangement.End
     ) {
         IconButton(
             onClick = { onToggleFavorite(favoriteContact?.id ?: participant.userId) },
             modifier = Modifier
                 .size(32.dp)
-                .padding(end = 8.dp),
+                .padding(end = 8.dp)
         ) {
             Icon(
                 imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarOutline,
-                contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                tint = if (isFavorite) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(18.dp),
+                contentDescription = if (isFavorite) {
+                    "Remove from favorites"
+                } else {
+                    "Add to favorites"
+                },
+                tint = if (isFavorite) {
+                    Color(0xFFFFD700)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                },
+                modifier = Modifier.size(18.dp)
             )
         }
     }
 }
 
 @Composable
-private fun ChatListItem(
-    chat: Chat,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun ChatListItem(chat: Chat, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         // Avatar
         Box {
             InitialsAvatar(
                 name = chat.name,
                 avatarUrl = chat.avatar,
-                size = 48.dp,
+                size = 48.dp
             )
             val onlineParticipant = chat.participants.firstOrNull { it.isOnline }
             if (onlineParticipant != null && chat.type == ChatType.DIRECT) {
@@ -281,7 +284,7 @@ private fun ChatListItem(
                         .size(12.dp)
                         .align(Alignment.BottomEnd)
                         .clip(CircleShape)
-                        .background(Color(0xFF4CAF50)),
+                        .background(Color(0xFF4CAF50))
                 )
             }
         }
@@ -291,20 +294,20 @@ private fun ChatListItem(
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = chat.name,
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f)
                 )
                 chat.lastMessage?.createdAt?.let { time ->
                     Text(
                         text = time.toRelativeTime(),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -314,7 +317,7 @@ private fun ChatListItem(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = chat.lastMessage?.content?.take(60) ?: "",
@@ -322,7 +325,7 @@ private fun ChatListItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f)
                 )
                 if (chat.unreadCount > 0) {
                     Box(
@@ -331,14 +334,14 @@ private fun ChatListItem(
                             .clip(CircleShape)
                             .background(
                                 color = MaterialTheme.colorScheme.primary,
-                                shape = CircleShape,
+                                shape = CircleShape
                             ),
-                        contentAlignment = Alignment.Center,
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = if (chat.unreadCount > 99) "99+" else "${chat.unreadCount}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }
@@ -349,7 +352,11 @@ private fun ChatListItem(
 
 // Previews
 @Preview(name = "Light", showBackground = true)
-@Preview(name = "Dark", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun ChatListPreview() {
     EchoTheme {
@@ -379,11 +386,11 @@ private fun ChatListPreview() {
                         reactions = emptyMap(),
                         isEdited = false,
                         readByUserIds = emptySet(),
-                        createdAt = Instant.now().minusSeconds(300),
+                        createdAt = Instant.now().minusSeconds(300)
                     ),
                     settings = ChatSettings(),
                     createdAt = Instant.now().minusSeconds(3600),
-                    updatedAt = null,
+                    updatedAt = null
                 ),
                 Chat(
                     id = "2",
@@ -409,19 +416,19 @@ private fun ChatListPreview() {
                         reactions = emptyMap(),
                         isEdited = false,
                         readByUserIds = emptySet(),
-                        createdAt = Instant.now().minusSeconds(1800),
+                        createdAt = Instant.now().minusSeconds(1800)
                     ),
                     settings = ChatSettings(),
                     createdAt = Instant.now().minusSeconds(86400),
-                    updatedAt = null,
-                ),
+                    updatedAt = null
+                )
             ),
             favorites = emptyList(),
             isLoading = false,
             error = null,
             onRefresh = {},
             onChatClicked = {},
-            onCreateDirectChat = {},
+            onCreateDirectChat = {}
         )
     }
 }
@@ -437,7 +444,7 @@ private fun ChatListEmptyPreview() {
             error = null,
             onRefresh = {},
             onChatClicked = {},
-            onCreateDirectChat = {},
+            onCreateDirectChat = {}
         )
     }
 }

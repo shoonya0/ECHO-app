@@ -15,6 +15,14 @@ class FakeChatRepository : ChatRepository {
     /** When set, getChatMessages waits for it, to test events that arrive during a load. */
     var getChatMessagesGate: CompletableDeferred<Unit>? = null
 
+    /** How many times getChatList was called: each call is a REST round trip per contact. */
+    var getChatListCalls = 0
+        private set
+
+    /** How many times createDirectChat was called (a `POST chats/direct/<user>` each). */
+    var createDirectChatCalls = 0
+        private set
+
     /** The `before` cursor of each getChatMessages call, in order. */
     val getChatMessagesCursors = mutableListOf<String?>()
     private var sendMessageResult: Result<Message> = Result.failure(
@@ -76,10 +84,15 @@ class FakeChatRepository : ChatRepository {
         getChatResult = Result.failure(Exception(message))
     }
 
-    override suspend fun getChatList(contactIds: List<String>): Result<List<Chat>> = chatListResult
+    override suspend fun getChatList(contactIds: List<String>): Result<List<Chat>> {
+        getChatListCalls++
+        return chatListResult
+    }
 
-    override suspend fun createDirectChat(targetUserId: String): Result<Chat> =
-        createDirectChatResult
+    override suspend fun createDirectChat(targetUserId: String): Result<Chat> {
+        createDirectChatCalls++
+        return createDirectChatResult
+    }
 
     override suspend fun getChatMessages(
         chatId: String,
