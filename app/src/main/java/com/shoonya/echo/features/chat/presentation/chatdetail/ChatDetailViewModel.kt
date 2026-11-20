@@ -142,8 +142,10 @@ class ChatDetailViewModel @Inject constructor(
     private suspend fun connectAndJoin() {
         wsRepository.connect()
         joinChat()
-        collectWsEvents()
-        collectConnectionStatus()
+        // Each collector in its own coroutine: both flows never complete, so a second
+        // collect after the first in the same coroutine would never run (#13).
+        viewModelScope.launch { collectWsEvents() }
+        viewModelScope.launch { collectConnectionStatus() }
     }
 
     fun onInputChanged(text: String) {

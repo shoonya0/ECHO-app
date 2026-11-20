@@ -129,6 +129,23 @@ class ChatDetailViewModelTest {
     }
 
     @Test
+    fun `connection status follows the socket after the chat is joined`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(emptyList())
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+        assertEquals(WsConnectionStatus.CONNECTED, viewModel.state.value.connectionStatus)
+
+        fakeWsRepo.setConnectionStatus(WsConnectionStatus.RECONNECTING)
+        runCurrent()
+        assertEquals(WsConnectionStatus.RECONNECTING, viewModel.state.value.connectionStatus)
+
+        fakeWsRepo.setConnectionStatus(WsConnectionStatus.CONNECTED)
+        runCurrent()
+        assertEquals(WsConnectionStatus.CONNECTED, viewModel.state.value.connectionStatus)
+    }
+
+    @Test
     fun `sendMessage optimistically appends message and clears input immediately`() = runTest {
         fakeChatRepo.setGetChatMessagesSuccess(emptyList())
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
