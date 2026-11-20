@@ -1,7 +1,7 @@
 package com.shoonya.echo.features.chat.data.repository
 
-import com.shoonya.echo.core.data.local.SecureTokenStore
 import com.shoonya.echo.core.data.remote.toResult
+import com.shoonya.echo.core.domain.UserIdProvider
 import com.shoonya.echo.features.chat.data.local.ChatCache
 import com.shoonya.echo.features.chat.data.model.toChat
 import com.shoonya.echo.features.chat.data.model.toMessage
@@ -19,12 +19,12 @@ import timber.log.Timber
 class ChatRepositoryImpl @Inject constructor(
     private val chatApi: ChatApiService,
     private val messageApi: MessageApiService,
-    private val tokenStore: SecureTokenStore,
+    private val userIdProvider: UserIdProvider,
     private val chatCache: ChatCache
 ) : ChatRepository {
 
     override suspend fun getChatList(contactIds: List<String>): Result<List<Chat>> {
-        val currentUserId = tokenStore.getUserId()
+        val currentUserId = userIdProvider.getUserId()
             ?: return Result.failure(IllegalStateException("User not authenticated"))
         val chats = mutableListOf<Chat>()
         val seenChatIds = mutableSetOf<String>()
@@ -35,11 +35,13 @@ class ChatRepositoryImpl @Inject constructor(
                 val chatDto = chatApi.createDirectChat(contactId).toResult().getOrThrow()
                 if (chatDto.id !in seenChatIds) {
                     seenChatIds.add(chatDto.id)
-                    chatCache.addChat(chatDto.id)
-                    val chat = chatDto.toChat(currentUserId)
                     // Try to fetch the latest message preview
                     val preview = getLatestMessage(chatDto.id).getOrNull()
-                    chats.add(chat.copy(lastMessage = preview))
+                    val chat = chatDto.toChat(currentUserId).copy(lastMessage = preview)
+                    // Cache the whole chat, not just its id: the chat screen reads its
+                    // name from getChat(chatId) (issue #2).
+                    chatCache.cacheChat(chat)
+                    chats.add(chat)
                 }
             }.onFailure { err ->
                 Timber.tag(
@@ -57,7 +59,7 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     override suspend fun createDirectChat(targetUserId: String): Result<Chat> {
-        val currentUserId = tokenStore.getUserId()
+        val currentUserId = userIdProvider.getUserId()
             ?: return Result.failure(IllegalStateException("User not authenticated"))
         return runCatching {
             val chatDto = chatApi.createDirectChat(targetUserId).toResult().getOrThrow()
@@ -76,7 +78,7 @@ class ChatRepositoryImpl @Inject constructor(
         limit: Int,
         before: String?
     ): Result<MessagePage> {
-        val currentUserId = tokenStore.getUserId()
+        val currentUserId = userIdProvider.getUserId()
             ?: return Result.failure(IllegalStateException("User not authenticated"))
         return runCatching {
             val response = messageApi.getChatMessages(chatId, limit, before).toResult().getOrThrow()
@@ -134,7 +136,7 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getLatestMessage(chatId: String): Result<Message?> {
-        val currentUserId = tokenStore.getUserId()
+        val currentUserId = userIdProvider.getUserId()
             ?: return Result.failure(IllegalStateException("User not authenticated"))
         return runCatching {
             val response = messageApi.getChatMessages(chatId, limit = 1)
