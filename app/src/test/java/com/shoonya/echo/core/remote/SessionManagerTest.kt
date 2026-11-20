@@ -16,7 +16,7 @@ class SessionManagerTest {
     @Test
     fun `expire clears tokens and emits the reason, EXPIRED by default`() = runTest {
         var cleared = 0
-        val manager = SessionManager(clearTokens = { cleared++ })
+        val manager = SessionManager(clearTokens = { cleared++ }, clearAccountData = {})
         val reasons = mutableListOf<SessionEndReason>()
         val job = launch(UnconfinedTestDispatcher(testScheduler)) {
             manager.sessionExpired.toList(reasons)
@@ -28,5 +28,33 @@ class SessionManagerTest {
         assertEquals(2, cleared)
         assertEquals(listOf(SessionEndReason.EXPIRED, SessionEndReason.ACCOUNT_BANNED), reasons)
         job.cancel()
+    }
+
+    // #22: a deleted account's data must not survive for the next login in this process.
+    @Test
+    fun `ACCOUNT_NOT_FOUND clears tokens and the account's local data`() {
+        var tokensCleared = 0
+        var dataCleared = 0
+        val manager = SessionManager(
+            clearTokens = { tokensCleared++ },
+            clearAccountData = { dataCleared++ }
+        )
+
+        manager.expire(SessionEndReason.ACCOUNT_NOT_FOUND)
+
+        assertEquals(1, tokensCleared)
+        assertEquals(1, dataCleared)
+    }
+
+    @Test
+    fun `other reasons keep the account's local data`() {
+        var dataCleared = 0
+        val manager = SessionManager(clearTokens = {}, clearAccountData = { dataCleared++ })
+
+        manager.expire()
+        manager.expire(SessionEndReason.ACCOUNT_BANNED)
+        manager.expire(SessionEndReason.ACCOUNT_INACTIVE)
+
+        assertEquals(0, dataCleared)
     }
 }

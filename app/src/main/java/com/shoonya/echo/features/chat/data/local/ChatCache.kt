@@ -1,11 +1,12 @@
 package com.shoonya.echo.features.chat.data.local
 
+import com.shoonya.echo.core.data.local.PerAccountCache
 import com.shoonya.echo.features.chat.domain.model.Chat
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ChatCache @Inject constructor() {
+class ChatCache @Inject constructor() : PerAccountCache {
     private val discoveredChatIds = mutableSetOf<String>()
     private val cachedChats = mutableMapOf<String, Chat>()
 
@@ -22,7 +23,7 @@ class ChatCache @Inject constructor() {
 
     fun getDiscoveredChatIds(): Set<String> = discoveredChatIds.toSet()
 
-    fun clear() {
+    override fun clear() {
         discoveredChatIds.clear()
         cachedChats.clear()
     }

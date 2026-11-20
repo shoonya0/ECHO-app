@@ -140,10 +140,16 @@ class WebSocketRepositoryImpl(
         sessionEnder.endSession(sessionEndReason(code, reason))
     }
 
-    // The close reason is the REST code (server #76), so Login can say why for 4403.
+    // The close reason is the REST code (server #76), so Login can say why, and a deleted
+    // account's local data is cleared (#22).
     private fun sessionEndReason(code: Int, reason: String): SessionEndReason = when {
+        code == CLOSE_UNAUTHORIZED && reason == "ACCOUNT_NOT_FOUND" ->
+            SessionEndReason.ACCOUNT_NOT_FOUND
+
         code == CLOSE_FORBIDDEN && reason == "ACCOUNT_BANNED" -> SessionEndReason.ACCOUNT_BANNED
+
         code == CLOSE_FORBIDDEN && reason == "ACCOUNT_INACTIVE" -> SessionEndReason.ACCOUNT_INACTIVE
+
         else -> SessionEndReason.EXPIRED
     }
 
@@ -225,6 +231,7 @@ class WebSocketRepositoryImpl(
     }
 
     private companion object {
+        const val CLOSE_UNAUTHORIZED = 4401
         const val CLOSE_FORBIDDEN = 4403
     }
 }
