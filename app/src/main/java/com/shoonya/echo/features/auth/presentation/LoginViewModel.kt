@@ -1,7 +1,9 @@
 package com.shoonya.echo.features.auth.presentation
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.core.util.ErrorMapper.toUserMessage
 import com.shoonya.echo.core.util.isValidEmail
 import com.shoonya.echo.features.auth.domain.usecase.LoginUseCase
@@ -21,10 +23,16 @@ import timber.log.Timber
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
-    private val signupUseCase: SignupUseCase
+    private val signupUseCase: SignupUseCase,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(LoginUiState())
+    private val _state = MutableStateFlow(
+        LoginUiState(
+            sessionEndReason = savedStateHandle.get<String>(ARG_SESSION_END_REASON)
+                ?.let { arg -> SessionEndReason.entries.find { it.name == arg } }
+        )
+    )
     val state: StateFlow<LoginUiState> = _state.asStateFlow()
 
     private val _events = MutableSharedFlow<LoginEvent>()
@@ -56,6 +64,7 @@ class LoginViewModel @Inject constructor(
     }
 
     fun onSubmit() {
+        _state.update { it.copy(sessionEndReason = null) }
         if (_state.value.isLoginMode) {
             login()
         } else {
@@ -164,6 +173,11 @@ class LoginViewModel @Inject constructor(
     private fun validateUsername(username: String): String? = when {
         username.isBlank() -> "Please enter a username"
         else -> null
+    }
+
+    companion object {
+        /** Navigation argument: the [SessionEndReason] name when the server ended the session. */
+        const val ARG_SESSION_END_REASON = "reason"
     }
 }
 

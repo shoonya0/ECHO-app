@@ -1,5 +1,7 @@
 package com.shoonya.echo.features.auth.presentation
 
+import com.shoonya.echo.core.domain.model.SessionEndReason
+
 data class LoginUiState(
     val email: String = "",
     val password: String = "",
@@ -11,5 +13,7 @@ data class LoginUiState(
     val passwordError: String? = null,
     val usernameError: String? = null,
     val isAuthenticated: Boolean = false,
-    val isSignupSuccess: Boolean = false
+    val isSignupSuccess: Boolean = false,
+    /** Why the last session ended, shown until the next submit; null after a normal start. */
+    val sessionEndReason: SessionEndReason? = null
 )

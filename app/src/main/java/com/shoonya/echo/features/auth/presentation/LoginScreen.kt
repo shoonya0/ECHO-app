@@ -1,5 +1,6 @@
 package com.shoonya.echo.features.auth.presentation
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -37,6 +39,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shoonya.echo.R
+import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.core.theme.EchoTheme
 
 @Composable
@@ -72,8 +76,17 @@ fun LoginScreen(viewModel: LoginViewModel = hiltViewModel(), onNavigateToHome: (
         onTogglePasswordVisibility = { passwordVisible = !passwordVisible },
         onSubmit = viewModel::onSubmit,
         onToggleMode = viewModel::onToggleMode,
-        onClearError = viewModel::clearError
+        onClearError = viewModel::clearError,
+        sessionEndReason = state.sessionEndReason
     )
+}
+
+/** Why the server ended the session, as text for the user; null when there is nothing to say. */
+@StringRes
+internal fun SessionEndReason.messageRes(): Int? = when (this) {
+    SessionEndReason.ACCOUNT_BANNED -> R.string.session_end_account_banned
+    SessionEndReason.ACCOUNT_INACTIVE -> R.string.session_end_account_inactive
+    SessionEndReason.EXPIRED -> null
 }
 
 @Composable
@@ -94,7 +107,8 @@ internal fun LoginContent(
     onTogglePasswordVisibility: () -> Unit,
     onSubmit: () -> Unit,
     onToggleMode: () -> Unit,
-    onClearError: () -> Unit
+    onClearError: () -> Unit,
+    sessionEndReason: SessionEndReason? = null
 ) {
     Box(
         modifier = Modifier
@@ -112,6 +126,14 @@ internal fun LoginContent(
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
+
+            sessionEndReason?.messageRes()?.let { messageRes ->
+                Text(
+                    text = stringResource(messageRes),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
