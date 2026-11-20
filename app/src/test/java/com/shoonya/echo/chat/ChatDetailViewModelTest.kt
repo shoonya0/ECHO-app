@@ -457,6 +457,35 @@ class ChatDetailViewModelTest {
     }
 
     @Test
+    fun `messages that arrive during the history load stay when the page lands`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        fakeChatRepo.getChatMessagesGate = gate
+        fakeChatRepo.setGetChatMessagesSuccess(listOf(TestData.message1))
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        fakeWsRepo.enableSendGate() // keeps my send in flight, so its bubble stays optimistic
+        createViewModel()
+        advanceUntilIdle()
+
+        val live = TestData.message1.copy(
+            id = "msg_live",
+            content = "new",
+            createdAt = Instant.now()
+        )
+        fakeWsRepo.emitDomainEvent(DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, live))
+        viewModel.onInputChanged("mine")
+        viewModel.sendMessage()
+        advanceUntilIdle()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        val messages = viewModel.state.value.messages
+        assertEquals(3, messages.size)
+        assertEquals(TestData.MESSAGE_ID_1, messages.first().id) // oldest first
+        assertTrue(messages.any { it.id == "msg_live" })
+        assertTrue(messages.any { it.content == "mine" })
+    }
+
+    @Test
     fun `own message acked before its live event still gets its seq and read tick`() = runTest {
         fakeChatRepo.setGetChatMessagesSuccess(emptyList())
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
