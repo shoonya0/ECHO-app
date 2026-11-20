@@ -189,6 +189,59 @@ class ChatListViewModelTest {
     }
 
     @Test
+    fun `the user's own join or leave does not reload the list`() = runTest {
+        // #29: opening a chat joins it, and the server sends that `join` back to this user.
+        fakeChatRepo.setChatListSuccess(listOf(TestData.directChat))
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.loadChats(listOf(TestData.ALICE_ID))
+        advanceUntilIdle()
+
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.UserJoined(TestData.CHAT_ID_DIRECT, TestData.CURRENT_USER_ID)
+        )
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.UserLeft(TestData.CHAT_ID_DIRECT, TestData.CURRENT_USER_ID)
+        )
+        advanceUntilIdle()
+
+        assertEquals(1, fakeChatRepo.getChatListCalls)
+    }
+
+    @Test
+    fun `another member joining still reloads the list`() = runTest {
+        fakeChatRepo.setChatListSuccess(listOf(TestData.directChat))
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.loadChats(listOf(TestData.ALICE_ID))
+        advanceUntilIdle()
+
+        fakeWsRepo.emitDomainEvent(DomainEvent.UserJoined(TestData.CHAT_ID_DIRECT, TestData.BOB_ID))
+        advanceUntilIdle()
+
+        assertEquals(2, fakeChatRepo.getChatListCalls)
+    }
+
+    @Test
+    fun `a second load of the same contacts while one runs makes no new calls`() = runTest {
+        // #29: the screen asked for the list twice on first show (LaunchedEffect + resume).
+        fakeChatRepo.setChatListSuccess(listOf(TestData.directChat))
+        createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loadChats(listOf(TestData.ALICE_ID))
+        viewModel.loadChats(listOf(TestData.ALICE_ID))
+        advanceUntilIdle()
+        assertEquals(1, fakeChatRepo.getChatListCalls)
+
+        // A later refresh (resume, pull to refresh) still loads.
+        viewModel.loadChats(listOf(TestData.ALICE_ID))
+        advanceUntilIdle()
+        assertEquals(2, fakeChatRepo.getChatListCalls)
+        assertEquals(listOf(TestData.directChat), viewModel.state.value.chats)
+    }
+
+    @Test
     fun `an older live message does not replace a newer preview`() = runTest {
         fakeChatRepo.setChatListSuccess(listOf(TestData.directChat))
         createViewModel()

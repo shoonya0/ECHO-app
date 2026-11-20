@@ -73,12 +73,9 @@ fun ChatListScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(contactIds) {
-        viewModel.loadChats(contactIds)
-    }
-
-    // Robust guarantee: re-fetch chat list whenever Chats tab becomes visible,
-    // even if contact IDs are unchanged (covers edge cases after contact refresh).
+    // Loads on first show, whenever the Chats tab resumes, and when the contacts change while it
+    // is shown (a new key re-runs the effect). A LaunchedEffect(contactIds) next to it made
+    // every first show load twice (#29).
     LifecycleResumeEffect(contactIds) {
         viewModel.loadChats(contactIds)
         onPauseOrDispose { /* no-op */ }

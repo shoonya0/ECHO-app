@@ -111,6 +111,36 @@ class ChatDetailViewModelTest {
     }
 
     @Test
+    fun `opening a chat loads its messages once and creates no chat`() = runTest {
+        // #29: the server log showed 2 POST chats/direct and 3 GET messages per chat open.
+        fakeChatRepo.setGetChatMessagesSuccess(listOf(TestData.message1))
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.onScreenVisibilityChanged(true)
+        fakeWsRepo.setConnectionStatus(WsConnectionStatus.RECONNECTING)
+        runCurrent()
+        fakeWsRepo.setConnectionStatus(WsConnectionStatus.CONNECTED)
+        advanceUntilIdle()
+
+        assertEquals(0, fakeChatRepo.createDirectChatCalls)
+        assertEquals(listOf<String?>(null), fakeChatRepo.getChatMessagesCursors)
+    }
+
+    @Test
+    fun `opening a new direct chat creates it once and loads its messages once`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(listOf(TestData.message1))
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel(chatId = "new:${TestData.ALICE_ID}")
+        advanceUntilIdle()
+        viewModel.onScreenVisibilityChanged(true)
+        advanceUntilIdle()
+
+        assertEquals(1, fakeChatRepo.createDirectChatCalls)
+        assertEquals(listOf<String?>(null), fakeChatRepo.getChatMessagesCursors)
+    }
+
+    @Test
     fun `given messages load failure, state contains error`() = runTest {
         fakeChatRepo.setGetChatMessagesError("Network error")
         fakeChatRepo.setGetChatSuccess(TestData.directChat)
