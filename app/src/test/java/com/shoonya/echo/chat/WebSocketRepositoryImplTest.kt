@@ -30,7 +30,8 @@ import timber.log.Timber
 class WebSocketRepositoryImplTest {
 
     private val factory = FakeWebSocketFactory()
-    private val client = EchoWebSocketClient(factory, { "tok" }, "ws://test/ws")
+    private var token: String? = "tok"
+    private val client = EchoWebSocketClient(factory, { token }, "ws://test/ws")
     private val reconnectManager = ReconnectManager(client)
     private val endReasons = mutableListOf<SessionEndReason>()
     private val sessionsEnded get() = endReasons.size
@@ -248,6 +249,56 @@ class WebSocketRepositoryImplTest {
         assertEquals(1, factory.sockets.size)
         assertEquals(false, repo.isConnected())
         assertEquals(WsConnectionStatus.DISCONNECTED, repo.status())
+    }
+
+    // #26: a rejected upgrade ends the session like 4401/4403, without reconnecting.
+    @Test
+    fun `handshake 401 ends the session and does not reconnect`() = runTest {
+        assertHandshakeEndsSession(401, """{"code":"TOKEN_REVOKED"}""")
+    }
+
+    @Test
+    fun `handshake 403 ends the session and does not reconnect`() = runTest {
+        assertHandshakeEndsSession(403, """{"code":"ACCOUNT_BANNED"}""")
+    }
+
+    private suspend fun TestScope.assertHandshakeEndsSession(httpCode: Int, body: String) {
+        val repo = repository()
+        repo.connect()
+
+        factory.last.serverRejectsUpgrade(httpCode, body)
+        runCurrent()
+        waitOutReconnectDelay()
+
+        assertEquals(1, factory.sockets.size)
+        assertEquals(1, sessionsEnded)
+    }
+
+    @Test
+    fun `handshake 503 (auth unavailable) reconnects and keeps the session`() = runTest {
+        val repo = repository()
+        repo.connect()
+
+        factory.last.serverRejectsUpgrade(503, """{"code":"AUTH_UNAVAILABLE"}""")
+        waitOutReconnectDelay()
+
+        assertEquals(2, factory.sockets.size)
+        assertEquals(0, sessionsEnded)
+    }
+
+    @Test
+    fun `connect without a token schedules no reconnect`() = runTest {
+        token = null
+        val repo = repository()
+
+        repo.connect()
+        runCurrent()
+        token = "tok" // a reconnect, if one were scheduled, would now open a socket
+        waitOutReconnectDelay()
+
+        assertEquals(0, factory.sockets.size)
+        assertEquals(0, sessionsEnded)
+        assertEquals(WsConnectionStatus.FAILED, repo.status())
     }
 
     @Test

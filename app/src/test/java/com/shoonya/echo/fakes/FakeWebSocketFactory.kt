@@ -1,9 +1,12 @@
 package com.shoonya.echo.fakes
 
 import java.io.IOException
+import java.net.ProtocolException
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
@@ -83,4 +86,19 @@ class FakeWebSocket(private val request: Request, val listener: WebSocketListene
 
     fun fails(message: String = "connection reset") =
         listener.onFailure(this, IOException(message), null)
+
+    /** The server answers the upgrade with an HTTP error, as OkHttp reports it. */
+    fun serverRejectsUpgrade(code: Int, body: String = "") {
+        listener.onFailure(
+            this,
+            ProtocolException("Expected HTTP 101 response but was '$code'"),
+            Response.Builder()
+                .request(request)
+                .protocol(Protocol.HTTP_1_1)
+                .code(code)
+                .message("Rejected")
+                .body(body.toResponseBody("application/json".toMediaType()))
+                .build()
+        )
+    }
 }
