@@ -12,7 +12,8 @@ import timber.log.Timber
 
 /**
  * Adds the bearer token and ends the session when the server says it is over (#33):
- * `401`, or `403` with code `ACCOUNT_BANNED` / `ACCOUNT_INACTIVE`. Anything else,
+ * `401` (`ACCOUNT_NOT_FOUND` says the account was deleted, #22), or `403` with code
+ * `ACCOUNT_BANNED` / `ACCOUNT_INACTIVE`. Anything else,
  * including `503 AUTH_UNAVAILABLE` and other `403`s, keeps the session.
  */
 class AuthInterceptor internal constructor(
@@ -51,9 +52,12 @@ class AuthInterceptor internal constructor(
     }
 
     private fun sessionEndReason(response: Response): SessionEndReason? = when (response.code) {
-        401 -> SessionEndReason.EXPIRED
-
         // peekBody leaves the body readable for the caller (Retrofit's error handling).
+        401 -> when (errorCode(response.peekBody(MAX_PEEK_BYTES).string())) {
+            "ACCOUNT_NOT_FOUND" -> SessionEndReason.ACCOUNT_NOT_FOUND
+            else -> SessionEndReason.EXPIRED
+        }
+
         403 -> when (errorCode(response.peekBody(MAX_PEEK_BYTES).string())) {
             "ACCOUNT_BANNED" -> SessionEndReason.ACCOUNT_BANNED
             "ACCOUNT_INACTIVE" -> SessionEndReason.ACCOUNT_INACTIVE
