@@ -1,5 +1,8 @@
 package com.shoonya.echo.features.chat.data.remote
 
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -7,14 +10,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
-import kotlin.random.Random
 
 @Singleton
-class ReconnectManager @Inject constructor(
-    private val wsClient: EchoWebSocketClient,
-) {
+class ReconnectManager @Inject constructor(private val wsClient: EchoWebSocketClient) {
     private var retryCount = 0
     private val maxRetries = 5
     private val baseDelay = 1_000L
