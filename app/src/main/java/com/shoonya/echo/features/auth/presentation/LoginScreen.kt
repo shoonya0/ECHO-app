@@ -95,6 +95,7 @@ internal fun AccountStatus.messageRes(): Int = when (this) {
 internal fun SessionEndReason.messageRes(): Int? = when (this) {
     SessionEndReason.ACCOUNT_BANNED -> R.string.session_end_account_banned
     SessionEndReason.ACCOUNT_INACTIVE -> R.string.session_end_account_inactive
+    SessionEndReason.ACCOUNT_NOT_FOUND -> R.string.session_end_account_not_found
     SessionEndReason.EXPIRED -> null
 }
 

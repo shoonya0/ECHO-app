@@ -23,4 +23,5 @@
     <string name="session_end_account_inactive">Your account is not active. You have been logged out.</string>
     <string name="login_account_banned">This account has been banned, so you can\'t log in.</string>
     <string name="login_account_inactive">This account is not active, so you can\'t log in.</string>
+    <string name="session_end_account_not_found">This account no longer exists. You have been logged out.</string>
 </resources>

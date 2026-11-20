@@ -22,8 +22,8 @@ abstract class WebSocketBindsModule {
 @Module
 @InstallIn(SingletonComponent::class)
 object WebSocketProvidesModule {
-    // A 4401/4403 close ends the session the same way an HTTP 401 does.
+    // A 4401/4403 close ends the session the same way an HTTP 401/403 does, with its reason.
     @Provides
     fun provideWsSessionEnder(sessionManager: SessionManager): WsSessionEnder =
-        WsSessionEnder { sessionManager.expire() }
+        WsSessionEnder(sessionManager::expire)
 }
