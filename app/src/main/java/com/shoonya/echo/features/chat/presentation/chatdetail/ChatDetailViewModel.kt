@@ -74,16 +74,27 @@ class ChatDetailViewModel @Inject constructor(
     // arrive before or even without an ack) with the local optimistic bubble.
     private val inFlightSends = mutableMapOf<String, String>()
 
-    // mark_read (#10): only while the screen is resumed, batched, each message id once.
+    // mark_read (#10): only while the screen is resumed, batched, one request at a time.
     private var isScreenVisible = false
     private var markReadJob: Job? = null
-    private val sentReadIds = mutableSetOf<String>()
+    private var readInFlight: ReadRequest? = null
+    private var readTimeouts = 0
+
+    // Ids the server has handled (or refused for good): never sent again. Needed for messages
+    // without a seq, which the read seqs can't mark as read.
+    private val handledReadIds = mutableSetOf<String>()
+
+    private class ReadRequest(val requestId: String, val ids: List<String>, val timeout: Job)
 
     init {
-        // Its own collector: a mark_read dropped while the socket was closed goes out on reconnect.
+        // Its own collector: a mark_read lost with the socket goes out again on reconnect.
         viewModelScope.launch {
             wsRepository.connectionStatus.collect { status ->
-                if (status == WsConnectionStatus.CONNECTED) scheduleMarkRead()
+                if (status == WsConnectionStatus.CONNECTED) {
+                    scheduleMarkRead()
+                } else {
+                    dropReadInFlight()
+                }
             }
         }
         if (rawChatId.startsWith("new:")) {
@@ -298,31 +309,74 @@ class ChatDetailViewModel @Inject constructor(
     }
 
     /**
-     * Sends one `mark_read` for the shown messages from others that this user hasn't read, after
-     * a short debounce so a burst of messages makes one request (the server rate-limits, #10).
-     * The server raises this user's read seq to the highest seq among the ids. Ids that couldn't
-     * be sent stay unread here and go out on the next trigger.
+     * Sends one `mark_read` for the shown messages from others that this user hasn't read, at
+     * most one per [delayMs] window: a trigger never pushes back a send already scheduled, so a
+     * busy chat still sends. One request at a time (the server rate-limits): the next waits
+     * until this user's `delivery` event confirms the last, an error answers it, the socket
+     * drops, or [MARK_READ_TIMEOUT_MS] passes. The server raises the read seq to the highest
+     * seq among the ids.
      */
-    private fun scheduleMarkRead() {
-        if (!isScreenVisible) return
-        markReadJob?.cancel()
+    private fun scheduleMarkRead(delayMs: Long = MARK_READ_THROTTLE_MS) {
+        if (!isScreenVisible || readInFlight != null || markReadJob?.isActive == true) return
         markReadJob = viewModelScope.launch {
-            delay(MARK_READ_DEBOUNCE_MS)
-            if (resolvedChatId.isBlank() || resolvedChatId.startsWith("new:")) return@launch
-            val ids = _state.value.messages
-                .filter {
-                    it.senderId != currentUserId &&
-                        currentUserId !in it.readByUserIds &&
-                        it.id !in sentReadIds
-                }
-                .map { it.id }
-            if (ids.isEmpty()) return@launch
-            markReadUseCase(resolvedChatId, ids)
-                .onSuccess { sentReadIds += ids }
-                .onFailure { err ->
-                    Timber.tag("ChatDetailVM").w(err, "mark_read not sent: %s", resolvedChatId)
-                }
+            delay(delayMs)
+            sendMarkRead()
         }
+    }
+
+    private suspend fun sendMarkRead() {
+        if (!isScreenVisible || readInFlight != null) return
+        if (resolvedChatId.isBlank() || resolvedChatId.startsWith("new:")) return
+        val ids = _state.value.messages
+            .filter {
+                it.senderId != currentUserId &&
+                    currentUserId !in it.readByUserIds &&
+                    it.id !in handledReadIds
+            }
+            .map { it.id }
+        if (ids.isEmpty()) return
+        markReadUseCase(resolvedChatId, ids)
+            .onSuccess { requestId ->
+                val timeout = viewModelScope.launch {
+                    delay(MARK_READ_TIMEOUT_MS)
+                    Timber.tag("ChatDetailVM").w("mark_read got no reply: %s", resolvedChatId)
+                    readInFlight = null
+                    if (++readTimeouts < MARK_READ_MAX_TIMEOUTS) scheduleMarkRead()
+                }
+                readInFlight = ReadRequest(requestId, ids, timeout)
+            }
+            .onFailure { err ->
+                // The socket is closed; the CONNECTED status sends it again.
+                Timber.tag("ChatDetailVM").w(err, "mark_read not sent: %s", resolvedChatId)
+            }
+    }
+
+    /** This user's own `delivery` event: the request in flight was saved. */
+    private fun onOwnReadConfirmed() {
+        readInFlight?.let { handledReadIds += it.ids }
+        dropReadInFlight()
+        readTimeouts = 0
+        scheduleMarkRead()
+    }
+
+    /**
+     * An error answered the request in flight. Retries after [MARK_READ_RETRY_MS] when the server
+     * may take it later; otherwise gives up on those ids. Read sync is silent: no snackbar.
+     */
+    private fun onReadFailed(code: String) {
+        val request = readInFlight ?: return
+        dropReadInFlight()
+        Timber.tag("ChatDetailVM").w("mark_read failed: %s %s", code, resolvedChatId)
+        if (code in RETRYABLE_READ_ERRORS) {
+            scheduleMarkRead(MARK_READ_RETRY_MS)
+        } else {
+            handledReadIds += request.ids
+        }
+    }
+
+    private fun dropReadInFlight() {
+        readInFlight?.timeout?.cancel()
+        readInFlight = null
     }
 
     fun addReaction(messageId: String, emoji: String) {
@@ -503,10 +557,15 @@ class ChatDetailViewModel @Inject constructor(
                                 readSeqs = readSeqs
                             )
                         }
+                        if (event.userId == currentUserId) onOwnReadConfirmed()
                     }
                 }
 
                 is DomainEvent.BackendError -> {
+                    if (event.requestId != null && event.requestId == readInFlight?.requestId) {
+                        onReadFailed(event.code)
+                        return@collect
+                    }
                     val message = com.shoonya.echo.core.util.ErrorMapper.mapBackendError(
                         event.code,
                         event.message
@@ -575,7 +634,13 @@ class ChatDetailViewModel @Inject constructor(
         messages.filter { it.id != optimisticId }
 }
 
-private const val MARK_READ_DEBOUNCE_MS = 300L
+private const val MARK_READ_THROTTLE_MS = 300L
+private const val MARK_READ_RETRY_MS = 2_000L
+private const val MARK_READ_TIMEOUT_MS = 10_000L
+private const val MARK_READ_MAX_TIMEOUTS = 3
+
+// Errors after which a later mark_read can work; others (blocked, not a member) won't change.
+private val RETRYABLE_READ_ERRORS = setOf("RATE_LIMITED", "READ_FAILED")
 
 sealed interface ChatDetailEvent {
     data class ShowSnackbar(val message: String) : ChatDetailEvent
