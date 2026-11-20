@@ -21,6 +21,7 @@ import com.shoonya.echo.features.contacts.domain.usecase.RemoveFromFavoritesUseC
 import com.shoonya.echo.features.contacts.domain.usecase.SendContactRequestUseCase
 import com.shoonya.echo.features.contacts.domain.usecase.UnblockUserUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -30,7 +31,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 @HiltViewModel
 class ContactsViewModel @Inject constructor(
@@ -47,7 +47,7 @@ class ContactsViewModel @Inject constructor(
     private val addToFavoritesUseCase: AddToFavoritesUseCase,
     private val removeContactUseCase: RemoveContactUseCase,
     private val removeFromFavoritesUseCase: RemoveFromFavoritesUseCase,
-    private val getUserProfileUseCase: GetUserProfileUseCase,
+    private val getUserProfileUseCase: GetUserProfileUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ContactsUiState())
@@ -101,7 +101,7 @@ class ContactsViewModel @Inject constructor(
                         favorites = favorites,
                         blockedUsers = blocked,
                         incomingRequests = incoming,
-                        outgoingRequests = outgoing,
+                        outgoingRequests = outgoing
                     )
                 }
             }.onFailure { err ->
@@ -109,7 +109,7 @@ class ContactsViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isLoading = false,
-                        error = err.toUserMessage(),
+                        error = err.toUserMessage()
                     )
                 }
             }
@@ -136,7 +136,7 @@ class ContactsViewModel @Inject constructor(
                 displayName = identifier,
                 avatar = "",
                 presence = Presence(PresenceStatus.OFFLINE, false, null),
-                isFavorite = false,
+                isFavorite = false
             )
         val contactRecordId = contact.id
         val isCurrentlyFavorite = contactRecordId in favoriteIds
@@ -152,13 +152,19 @@ class ContactsViewModel @Inject constructor(
                     val newIsFavorite = !isCurrentlyFavorite
                     state.copy(
                         contacts = state.contacts.map {
-                            if (it.id == contactRecordId) it.copy(isFavorite = newIsFavorite) else it
+                            if (it.id ==
+                                contactRecordId
+                            ) {
+                                it.copy(isFavorite = newIsFavorite)
+                            } else {
+                                it
+                            }
                         },
                         favorites = if (isCurrentlyFavorite) {
                             state.favorites.filter { it.id != contactRecordId }
                         } else {
                             state.favorites + contact.copy(isFavorite = true)
-                        },
+                        }
                     )
                 }
             }.onFailure { err ->
@@ -177,7 +183,7 @@ class ContactsViewModel @Inject constructor(
                     _state.update { state ->
                         state.copy(
                             contacts = state.contacts.filter { it.id != userId },
-                            favorites = state.favorites.filter { it.id != userId },
+                            favorites = state.favorites.filter { it.id != userId }
                         )
                     }
                     _events.emit(ContactsEvent.ShowSnackbar("User blocked"))
@@ -195,7 +201,14 @@ class ContactsViewModel @Inject constructor(
             _state.update { it.copy(actionInFlightUserId = userId) }
             unblockUserUseCase(userId)
                 .onSuccess {
-                    _state.update { it.copy(blockedUsers = it.blockedUsers.filter { b -> b.id != userId }) }
+                    _state.update {
+                        it.copy(
+                            blockedUsers = it.blockedUsers.filter { b ->
+                                b.id !=
+                                    userId
+                            }
+                        )
+                    }
                     loadAll()
                     _events.emit(ContactsEvent.ShowSnackbar("User unblocked"))
                 }
@@ -280,7 +293,7 @@ class ContactsViewModel @Inject constructor(
                         state.copy(
                             contacts = state.contacts.filter { it.id != contactId },
                             favorites = state.favorites.filter { it.id != contactId },
-                            viewedProfile = null,
+                            viewedProfile = null
                         )
                     }
                     _events.emit(ContactsEvent.ShowSnackbar("Contact removed"))
@@ -324,7 +337,7 @@ class ContactsViewModel @Inject constructor(
                     } else {
                         contact
                     }
-                },
+                }
             )
         }
     }

@@ -34,33 +34,26 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.shoonya.echo.Routes
 import com.shoonya.echo.core.theme.EchoTheme
+import com.shoonya.echo.features.chat.presentation.chatlist.ChatListCrossFeatureEvent
+import com.shoonya.echo.features.chat.presentation.chatlist.ChatListCrossFeatureEvent.PresenceUpdate as WsPresenceUpdate
+import com.shoonya.echo.features.chat.presentation.chatlist.ChatListEvent
 import com.shoonya.echo.features.chat.presentation.chatlist.ChatListScreen
 import com.shoonya.echo.features.chat.presentation.chatlist.ChatListViewModel
-import com.shoonya.echo.features.chat.presentation.chatlist.ChatListCrossFeatureEvent
-import com.shoonya.echo.features.chat.presentation.chatlist.ChatListEvent
-import com.shoonya.echo.features.chat.presentation.chatlist.ChatListCrossFeatureEvent.PresenceUpdate as WsPresenceUpdate
 import com.shoonya.echo.features.contacts.presentation.ContactsEvent
 import com.shoonya.echo.features.contacts.presentation.ContactsListScreen
 import com.shoonya.echo.features.contacts.presentation.ContactsViewModel
 import com.shoonya.echo.features.settings.presentation.SettingsScreen
 
-data class BottomNavItem(
-    val route: String,
-    val label: String,
-    val icon: ImageVector,
-)
+data class BottomNavItem(val route: String, val label: String, val icon: ImageVector)
 
 val bottomNavItems = listOf(
     BottomNavItem("home/chats", "Chats", Icons.Default.Chat),
     BottomNavItem("home/contacts", "Contacts", Icons.Default.People),
-    BottomNavItem("home/settings", "Settings", Icons.Default.Settings),
+    BottomNavItem("home/settings", "Settings", Icons.Default.Settings)
 )
 
 @Composable
-fun HomeScreen(
-    rootNavController: NavHostController,
-    onLogout: () -> Unit,
-) {
+fun HomeScreen(rootNavController: NavHostController, onLogout: () -> Unit) {
     val nestedNavController = rememberNavController()
     val contactsViewModel: ContactsViewModel = hiltViewModel()
     val contactsState by contactsViewModel.state.collectAsStateWithLifecycle()
@@ -82,6 +75,7 @@ fun HomeScreen(
                 is ChatListEvent.NavigateToChat -> {
                     rootNavController.navigate(Routes.chat(event.chatId))
                 }
+
                 is ChatListEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
             }
         }
@@ -104,7 +98,9 @@ fun HomeScreen(
                 is WsPresenceUpdate -> {
                     contactsViewModel.onPresenceUpdate(
                         userId = event.userId,
-                        isOnline = event.status == com.shoonya.echo.features.chat.domain.model.PresenceStatus.ONLINE,
+                        isOnline =
+                            event.status ==
+                                com.shoonya.echo.features.chat.domain.model.PresenceStatus.ONLINE
                     )
                 }
             }
@@ -123,7 +119,8 @@ fun HomeScreen(
 
                 bottomNavItems.forEach { item ->
                     NavigationBarItem(
-                        selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
+                        selected =
+                            currentDestination?.hierarchy?.any { it.route == item.route } == true,
                         onClick = {
                             nestedNavController.navigate(item.route) {
                                 popUpTo(nestedNavController.graph.startDestinationId) {
@@ -134,16 +131,16 @@ fun HomeScreen(
                             }
                         },
                         icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) },
+                        label = { Text(item.label) }
                     )
                 }
             }
-        },
+        }
     ) { paddingValues ->
         NavHost(
             navController = nestedNavController,
             startDestination = "home/contacts",
-            modifier = Modifier.padding(paddingValues),
+            modifier = Modifier.padding(paddingValues)
         ) {
             composable("home/contacts") {
                 ContactsListScreen(
@@ -157,7 +154,7 @@ fun HomeScreen(
                     },
                     onSuggestionsClicked = {
                         rootNavController.navigate(Routes.SUGGESTIONS)
-                    },
+                    }
                 )
             }
 
@@ -169,10 +166,12 @@ fun HomeScreen(
                         contactsViewModel.onEvent(ContactsEvent.ToggleFavorite(contactId))
                     },
                     viewModel = chatListViewModel,
-                    onChatClicked = { chatId -> handleChatClick(chatId, chatListViewModel, rootNavController) },
+                    onChatClicked = { chatId ->
+                        handleChatClick(chatId, chatListViewModel, rootNavController)
+                    },
                     onSuggestionsClicked = {
                         rootNavController.navigate(Routes.SUGGESTIONS)
-                    },
+                    }
                 )
             }
 
@@ -181,7 +180,7 @@ fun HomeScreen(
                     onEditProfile = {
                         rootNavController.navigate(Routes.EDIT_PROFILE)
                     },
-                    onLogout = onLogout,
+                    onLogout = onLogout
                 )
             }
         }
@@ -191,7 +190,7 @@ fun HomeScreen(
 private fun handleChatClick(
     chatId: String,
     chatListViewModel: ChatListViewModel,
-    navController: NavHostController,
+    navController: NavHostController
 ) {
     if (chatId.startsWith("new:")) {
         val userId = chatId.removePrefix("new:")
@@ -202,13 +201,17 @@ private fun handleChatClick(
 }
 
 @Preview(name = "Light", showBackground = true)
-@Preview(name = "Dark", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun HomeScreenPreview() {
     EchoTheme {
         HomeScreen(
             rootNavController = rememberNavController(),
-            onLogout = {},
+            onLogout = {}
         )
     }
 }

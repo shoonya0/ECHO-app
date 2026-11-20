@@ -67,7 +67,7 @@ class ContactsViewModelTest {
             addToFavoritesUseCase = AddToFavoritesUseCase(fakeRepo),
             removeContactUseCase = RemoveContactUseCase(fakeRepo),
             removeFromFavoritesUseCase = RemoveFromFavoritesUseCase(fakeRepo),
-            getUserProfileUseCase = GetUserProfileUseCase(fakeRepo),
+            getUserProfileUseCase = GetUserProfileUseCase(fakeRepo)
         )
     }
 

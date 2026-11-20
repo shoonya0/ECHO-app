@@ -20,8 +20,8 @@ class FakeSettingsRepository : SettingsRepository {
             statusMessage = "Hello",
             bio = "Test bio",
             presence = Presence(PresenceStatus.ONLINE, true, null),
-            isActive = true,
-        ),
+            isActive = true
+        )
     )
     private var updateProfileResult: Result<UserProfile> = Result.success(
         UserProfile(
@@ -34,8 +34,8 @@ class FakeSettingsRepository : SettingsRepository {
             statusMessage = "Updated status",
             bio = "Updated bio",
             presence = Presence(PresenceStatus.ONLINE, true, null),
-            isActive = true,
-        ),
+            isActive = true
+        )
     )
     private var deleteAccountResult: Result<Unit> = Result.success(Unit)
 
@@ -67,15 +67,15 @@ class FakeSettingsRepository : SettingsRepository {
         displayName: String?,
         avatar: String?,
         statusMessage: String?,
-        bio: String?,
+        bio: String?
     ): Result<UserProfile> {
         updateProfileCalls.add(
             mapOf(
                 "displayName" to displayName,
                 "avatar" to avatar,
                 "statusMessage" to statusMessage,
-                "bio" to bio,
-            ),
+                "bio" to bio
+            )
         )
         return updateProfileResult
     }

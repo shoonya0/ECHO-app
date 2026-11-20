@@ -149,15 +149,19 @@ class FakeContactsRepository : ContactsRepository {
 
     override suspend fun getBlockedUsers(): Result<List<Contact>> = blockedUsersResult
 
-    override suspend fun getIncomingRequests(): Result<List<ContactRequest>> = incomingRequestsResult
+    override suspend fun getIncomingRequests(): Result<List<ContactRequest>> =
+        incomingRequestsResult
 
-    override suspend fun getOutgoingRequests(): Result<List<ContactRequest>> = outgoingRequestsResult
+    override suspend fun getOutgoingRequests(): Result<List<ContactRequest>> =
+        outgoingRequestsResult
 
     override suspend fun sendContactRequest(userId: String): Result<Unit> = sendContactRequestResult
 
-    override suspend fun acceptContactRequest(requestId: String): Result<Unit> = acceptContactRequestResult
+    override suspend fun acceptContactRequest(requestId: String): Result<Unit> =
+        acceptContactRequestResult
 
-    override suspend fun declineContactRequest(requestId: String): Result<Unit> = declineContactRequestResult
+    override suspend fun declineContactRequest(requestId: String): Result<Unit> =
+        declineContactRequestResult
 
     override suspend fun removeContact(contactId: String): Result<Unit> = removeContactResult
 
@@ -167,7 +171,8 @@ class FakeContactsRepository : ContactsRepository {
 
     override suspend fun addToFavorites(userId: String): Result<Unit> = addToFavoritesResult
 
-    override suspend fun removeFromFavorites(userId: String): Result<Unit> = removeFromFavoritesResult
+    override suspend fun removeFromFavorites(userId: String): Result<Unit> =
+        removeFromFavoritesResult
 
     override suspend fun getUserProfile(userId: String): Result<User> = getUserProfileResult
 

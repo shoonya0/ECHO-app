@@ -69,21 +69,22 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `given toggle dark mode, state toggles isDarkMode to true and back to follow system`() = runTest {
-        advanceUntilIdle()
-        // Initial: null = follow system → isDarkMode=false in UI
-        assertFalse(viewModel.state.value.isDarkMode)
-        // Toggle: null → true (force dark)
-        viewModel.onEvent(SettingsEvent.ToggleDarkMode)
-        advanceUntilIdle()
-        assertTrue(viewModel.state.value.isDarkMode)
-        assertEquals(true, fakeRepo.setDarkModeCallValue)
-        // Toggle: true → null (back to follow system)
-        viewModel.onEvent(SettingsEvent.ToggleDarkMode)
-        advanceUntilIdle()
-        assertFalse(viewModel.state.value.isDarkMode)
-        assertEquals(null, fakeRepo.setDarkModeCallValue)
-    }
+    fun `given toggle dark mode, state toggles isDarkMode to true and back to follow system`() =
+        runTest {
+            advanceUntilIdle()
+            // Initial: null = follow system → isDarkMode=false in UI
+            assertFalse(viewModel.state.value.isDarkMode)
+            // Toggle: null → true (force dark)
+            viewModel.onEvent(SettingsEvent.ToggleDarkMode)
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.isDarkMode)
+            assertEquals(true, fakeRepo.setDarkModeCallValue)
+            // Toggle: true → null (back to follow system)
+            viewModel.onEvent(SettingsEvent.ToggleDarkMode)
+            advanceUntilIdle()
+            assertFalse(viewModel.state.value.isDarkMode)
+            assertEquals(null, fakeRepo.setDarkModeCallValue)
+        }
 
     @Test
     fun `given toggle notifications, state toggles notificationsEnabled`() = runTest {
