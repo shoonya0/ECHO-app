@@ -6,14 +6,14 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import java.util.concurrent.TimeUnit
-import javax.inject.Singleton
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -33,46 +33,38 @@ object NetworkModule {
     @RestClient
     fun provideRestOkHttpClient(
         tokenStore: SecureTokenStore,
-        sessionManager: SessionManager,
-    ): OkHttpClient {
-        return OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .addInterceptor(AuthInterceptor(tokenStore, sessionManager))
-            .apply {
-                if (BuildConfig.ENABLE_LOGGING) {
-                    addInterceptor(
-                        HttpLoggingInterceptor().apply {
-                            level = HttpLoggingInterceptor.Level.BODY
-                        }
-                    )
-                }
+        sessionManager: SessionManager
+    ): OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .addInterceptor(AuthInterceptor(tokenStore, sessionManager))
+        .apply {
+            if (BuildConfig.ENABLE_LOGGING) {
+                addInterceptor(
+                    HttpLoggingInterceptor().apply {
+                        level = HttpLoggingInterceptor.Level.BODY
+                    }
+                )
             }
-            .build()
-    }
+        }
+        .build()
 
     @Provides
     @Singleton
     @WsClient
-    fun provideWsOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
-            .pingInterval(54, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.MILLISECONDS)
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .build()
-    }
+    fun provideWsOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
+        .pingInterval(54, TimeUnit.SECONDS)
+        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .build()
 
     @Provides
     @Singleton
-    fun provideRetrofit(
-        @RestClient okHttpClient: OkHttpClient,
-        json: Json,
-    ): Retrofit {
-        return Retrofit.Builder()
+    fun provideRetrofit(@RestClient okHttpClient: OkHttpClient, json: Json): Retrofit =
+        Retrofit.Builder()
             .baseUrl(BuildConfig.API_BASE_URL + "/echo/v1/")
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
-    }
 }
