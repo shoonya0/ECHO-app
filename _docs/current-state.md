@@ -13,7 +13,7 @@ and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
 - **Feature:** fix [#10](https://github.com/shoonya0/ECHO-app/issues/10) on `fix/10-mark-read` (`cb4a77d` format, `4794e10` fix, `a6d7bb0` review fixes: one `mark_read` in flight until this user's `delivery` confirms it, retry on `RATE_LIMITED`/drop/timeout, throttle); verify passed, 143/143 unit tests; not pushed, no device check yet
-- **Next step:** push and open the PR; then [#11](https://github.com/shoonya0/ECHO-app/issues/11), [#13](https://github.com/shoonya0/ECHO-app/issues/13), telling the backend it can stop writing `readBy` (#42), or the group invite screen (backend #5 step 2)
+- **Next step:** user reviews and merges [PR #14](https://github.com/shoonya0/ECHO-app/pull/14); then [#11](https://github.com/shoonya0/ECHO-app/issues/11), [#13](https://github.com/shoonya0/ECHO-app/issues/13), telling the backend it can stop writing `readBy` (#42), or the group invite screen (backend #5 step 2)
 - **Updated:** 2026-11-20 at `a6d7bb0`
 
 ## What a user can do today
