@@ -3,18 +3,19 @@ package com.shoonya.echo.chat
 import com.shoonya.echo.fakes.FakeChatRepository
 import com.shoonya.echo.fakes.FakeWebSocketRepository
 import com.shoonya.echo.fakes.TestData
-import com.shoonya.echo.features.chat.domain.model.ServerFrame
-import com.shoonya.echo.features.chat.domain.model.ResponseData
-import com.shoonya.echo.features.chat.domain.model.TypingMetadata
 import com.shoonya.echo.features.chat.domain.model.MarkReadMetadata
 import com.shoonya.echo.features.chat.domain.model.ReactionMetadata
+import com.shoonya.echo.features.chat.domain.model.ResponseData
+import com.shoonya.echo.features.chat.domain.model.ServerFrame
+import com.shoonya.echo.features.chat.domain.model.TypingMetadata
+import com.shoonya.echo.features.chat.domain.model.WebSocketCommand
+import com.shoonya.echo.features.chat.domain.usecase.AddReactionUseCase
 import com.shoonya.echo.features.chat.domain.usecase.GetChatUseCase
 import com.shoonya.echo.features.chat.domain.usecase.JoinChatUseCase
 import com.shoonya.echo.features.chat.domain.usecase.LeaveChatUseCase
-import com.shoonya.echo.features.chat.domain.usecase.SetTypingUseCase
 import com.shoonya.echo.features.chat.domain.usecase.MarkReadUseCase
-import com.shoonya.echo.features.chat.domain.usecase.AddReactionUseCase
 import com.shoonya.echo.features.chat.domain.usecase.RemoveReactionUseCase
+import com.shoonya.echo.features.chat.domain.usecase.SetTypingUseCase
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -52,15 +53,17 @@ class JoinChatUseCaseTest {
 
     @Test
     fun `given valid chatId, when invoked, then sends join_chat command`() = runTest {
-        fakeWsRepo.setSendResult(Result.success(
-            ServerFrame.Response(data = ResponseData(success = true), requestId = null)
-        ))
+        fakeWsRepo.setSendResult(
+            Result.success(
+                ServerFrame.Response(data = ResponseData(success = true), requestId = null)
+            )
+        )
 
         useCase(TestData.CHAT_ID_DIRECT, TestData.CURRENT_USER_ID)
 
         assertEquals(1, fakeWsRepo.sentCommands.size)
         val cmd = fakeWsRepo.sentCommands.first()
-        assertTrue(cmd is com.shoonya.echo.features.chat.domain.model.WebSocketCommand.JoinChat)
+        assertTrue(cmd is WebSocketCommand.JoinChat)
     }
 
     @Test
@@ -84,7 +87,7 @@ class LeaveChatUseCaseTest {
 
         assertEquals(1, fakeWsRepo.sentCommands.size)
         val cmd = fakeWsRepo.sentCommands.first()
-        assertTrue(cmd is com.shoonya.echo.features.chat.domain.model.WebSocketCommand.LeaveChat)
+        assertTrue(cmd is WebSocketCommand.LeaveChat)
     }
 }
 
@@ -98,8 +101,8 @@ class SetTypingUseCaseTest {
 
         assertEquals(1, fakeWsRepo.sentCommands.size)
         val cmd = fakeWsRepo.sentCommands.first()
-        assertTrue(cmd is com.shoonya.echo.features.chat.domain.model.WebSocketCommand.SetTyping)
-        assertTrue((cmd as com.shoonya.echo.features.chat.domain.model.WebSocketCommand.SetTyping).metadata.isTyping)
+        assertTrue(cmd is WebSocketCommand.SetTyping)
+        assertTrue((cmd as WebSocketCommand.SetTyping).metadata.isTyping)
     }
 }
 
@@ -114,8 +117,17 @@ class MarkReadUseCaseTest {
 
         assertEquals(1, fakeWsRepo.sentCommands.size)
         val cmd = fakeWsRepo.sentCommands.first()
-        assertTrue(cmd is com.shoonya.echo.features.chat.domain.model.WebSocketCommand.MarkRead)
-        assertEquals(messageIds, (cmd as com.shoonya.echo.features.chat.domain.model.WebSocketCommand.MarkRead).metadata.messageIds)
+        assertTrue(cmd is WebSocketCommand.MarkRead)
+        assertEquals(messageIds, (cmd as WebSocketCommand.MarkRead).metadata.messageIds)
+    }
+
+    @Test
+    fun `when the socket isn't open, then fails`() = runTest {
+        fakeWsRepo.sendRawSucceeds = false
+
+        val result = useCase(TestData.CHAT_ID_DIRECT, listOf(TestData.MESSAGE_ID_1))
+
+        assertTrue(result.isFailure)
     }
 }
 
@@ -129,8 +141,8 @@ class AddReactionUseCaseTest {
 
         assertEquals(1, fakeWsRepo.sentCommands.size)
         val cmd = fakeWsRepo.sentCommands.first()
-        assertTrue(cmd is com.shoonya.echo.features.chat.domain.model.WebSocketCommand.AddReaction)
-        assertEquals("👍", (cmd as com.shoonya.echo.features.chat.domain.model.WebSocketCommand.AddReaction).metadata.emoji)
+        assertTrue(cmd is WebSocketCommand.AddReaction)
+        assertEquals("👍", (cmd as WebSocketCommand.AddReaction).metadata.emoji)
     }
 }
 
@@ -144,7 +156,7 @@ class RemoveReactionUseCaseTest {
 
         assertEquals(1, fakeWsRepo.sentCommands.size)
         val cmd = fakeWsRepo.sentCommands.first()
-        assertTrue(cmd is com.shoonya.echo.features.chat.domain.model.WebSocketCommand.RemoveReaction)
-        assertEquals("👍", (cmd as com.shoonya.echo.features.chat.domain.model.WebSocketCommand.RemoveReaction).metadata.emoji)
+        assertTrue(cmd is WebSocketCommand.RemoveReaction)
+        assertEquals("👍", (cmd as WebSocketCommand.RemoveReaction).metadata.emoji)
     }
 }

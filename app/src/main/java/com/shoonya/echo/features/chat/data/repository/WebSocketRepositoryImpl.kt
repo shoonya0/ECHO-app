@@ -9,6 +9,9 @@ import com.shoonya.echo.features.chat.domain.model.WebSocketCommand
 import com.shoonya.echo.features.chat.domain.model.toDomainEvent
 import com.shoonya.echo.features.chat.domain.repository.WebSocketRepository
 import com.shoonya.echo.features.chat.domain.repository.WsConnectionStatus
+import java.util.concurrent.ConcurrentHashMap
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,15 +25,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import timber.log.Timber
-import java.util.concurrent.ConcurrentHashMap
-import javax.inject.Inject
-import javax.inject.Singleton
 
 @Singleton
 class WebSocketRepositoryImpl @Inject constructor(
     private val wsClient: EchoWebSocketClient,
     private val reconnectManager: ReconnectManager,
-    private val json: Json,
+    private val json: Json
 ) : WebSocketRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -50,16 +50,20 @@ class WebSocketRepositoryImpl @Inject constructor(
                         _connectionStatus.value = WsConnectionStatus.CONNECTED
                         reconnectManager.reset()
                     }
+
                     is WebSocketEvent.Message -> handleRawMessage(event.raw)
+
                     is WebSocketEvent.Disconnected -> {
                         _connectionStatus.value = WsConnectionStatus.DISCONNECTED
                         reconnectManager.onDisconnected(scope)
                     }
+
                     is WebSocketEvent.Error -> {
                         Timber.tag("WS").e("WebSocket error: %s", event.message)
                         _connectionStatus.value = WsConnectionStatus.DISCONNECTED
                         reconnectManager.onDisconnected(scope)
                     }
+
                     is WebSocketEvent.ReconnectFailed -> {
                         _connectionStatus.value = WsConnectionStatus.FAILED
                     }
@@ -99,11 +103,13 @@ class WebSocketRepositoryImpl @Inject constructor(
             val frame = withTimeout(10_000) { deferred.await() }
             when (frame) {
                 is ServerFrame.Response -> Result.success(frame)
+
                 is ServerFrame.Error -> {
                     val msg = frame.data.message
                     Timber.tag("WS").e("command error: code=%s msg=%s", frame.data.code, msg)
                     Result.failure(RuntimeException(msg))
                 }
+
                 else -> Result.failure(RuntimeException("Unexpected frame type: ${frame.type}"))
             }
         } catch (e: Exception) {
@@ -112,9 +118,9 @@ class WebSocketRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun sendRaw(command: WebSocketCommand) {
+    override fun sendRaw(command: WebSocketCommand): Boolean {
         val text = json.encodeToString(WebSocketCommand.serializer(), command)
-        wsClient.send(text)
+        return wsClient.send(text)
     }
 
     private fun handleRawMessage(raw: String) {
@@ -123,7 +129,9 @@ class WebSocketRepositoryImpl @Inject constructor(
             val requestId = frame.requestId
             if (requestId != null) {
                 val deferred = pendingRequests[requestId]
-                if (deferred != null && (frame is ServerFrame.Response || frame is ServerFrame.Error)) {
+                if (deferred != null &&
+                    (frame is ServerFrame.Response || frame is ServerFrame.Error)
+                ) {
                     // Only ack/error frames resolve a pending request. Broadcast frames
                     // (e.g. `message` when the server echoes our requestId back to the
                     // sender) must still be emitted as domain events so the sent message

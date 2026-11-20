@@ -10,6 +10,8 @@ import com.shoonya.echo.features.chat.domain.model.Message
 import com.shoonya.echo.features.chat.domain.model.MessageType
 import com.shoonya.echo.features.chat.domain.model.ResponseData
 import com.shoonya.echo.features.chat.domain.model.ServerFrame
+import com.shoonya.echo.features.chat.domain.model.WebSocketCommand
+import com.shoonya.echo.features.chat.domain.repository.WsConnectionStatus
 import com.shoonya.echo.features.chat.domain.usecase.AddReactionUseCase
 import com.shoonya.echo.features.chat.domain.usecase.CreateDirectChatUseCase
 import com.shoonya.echo.features.chat.domain.usecase.GetChatMessagesUseCase
@@ -20,6 +22,7 @@ import com.shoonya.echo.features.chat.domain.usecase.MarkReadUseCase
 import com.shoonya.echo.features.chat.domain.usecase.RemoveReactionUseCase
 import com.shoonya.echo.features.chat.domain.usecase.SendMessageUseCase
 import com.shoonya.echo.features.chat.domain.usecase.SetTypingUseCase
+import com.shoonya.echo.features.chat.presentation.chatdetail.ChatDetailEvent
 import com.shoonya.echo.features.chat.presentation.chatdetail.ChatDetailViewModel
 import java.time.Instant
 import kotlinx.coroutines.CompletableDeferred
@@ -27,8 +30,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -610,5 +618,220 @@ class ChatDetailViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf<String?>(null), fakeChatRepo.getChatMessagesCursors)
+    }
+
+    // ── mark_read (#10) ──
+    // These tests step virtual time by hand: advanceUntilIdle would also run the 10 s reply
+    // timeouts and their retries. Throttle 300 ms, retry 2 s, timeout 10 s.
+
+    private fun markReads(): List<WebSocketCommand.MarkRead> =
+        fakeWsRepo.sentCommands.filterIsInstance<WebSocketCommand.MarkRead>()
+
+    private fun markReadIds(): List<List<String>> = markReads().map { it.metadata.messageIds }
+
+    private fun fromAlice(id: String, seq: Long) = TestData.message1.copy(
+        id = id,
+        seq = seq,
+        readByUserIds = emptySet(),
+        createdAt = Instant.now().minusSeconds(100 - seq)
+    )
+
+    /** Loads [history], lets the socket connect, then shows the screen. */
+    private fun TestScope.openChat(
+        history: List<Message>,
+        readSeqs: Map<String, Long> = emptyMap(),
+        visible: Boolean = true
+    ) {
+        fakeChatRepo.setGetChatMessagesSuccess(history, readSeqs = readSeqs)
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        runCurrent()
+        if (visible) viewModel.onScreenVisibilityChanged(true)
+        runCurrent()
+    }
+
+    private fun TestScope.wait(ms: Long) {
+        advanceTimeBy(ms)
+        runCurrent()
+    }
+
+    private fun aliceSends(message: Message) {
+        fakeWsRepo.emitDomainEvent(DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, message))
+    }
+
+    private fun myReadConfirmed(upToSeq: Long) {
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.ReadReceipt(TestData.CHAT_ID_DIRECT, TestData.CURRENT_USER_ID, upToSeq)
+        )
+    }
+
+    @Test
+    fun `visible chat marks the unread messages from others in one mark_read`() = runTest {
+        openChat(
+            listOf(
+                fromAlice("msg_1", 1),
+                fromAlice("msg_2", 2),
+                fromAlice("msg_3", 3),
+                TestData.message2.copy(id = "msg_4", seq = 4, readByUserIds = emptySet())
+            ),
+            readSeqs = mapOf(TestData.CURRENT_USER_ID to 1L)
+        )
+        wait(301)
+
+        // msg_1 is already read (my seq is 1), msg_4 is my own.
+        assertEquals(listOf(listOf("msg_2", "msg_3")), markReadIds())
+    }
+
+    @Test
+    fun `nothing is marked read while the screen isn't visible`() = runTest {
+        openChat(listOf(fromAlice("msg_1", 1)), visible = false)
+        aliceSends(fromAlice("msg_2", 2))
+        wait(301)
+        assertEquals(emptyList<List<String>>(), markReadIds())
+
+        viewModel.onScreenVisibilityChanged(true)
+        wait(301)
+        assertEquals(listOf(listOf("msg_1", "msg_2")), markReadIds())
+
+        myReadConfirmed(2)
+        runCurrent()
+        viewModel.onScreenVisibilityChanged(false)
+        aliceSends(fromAlice("msg_3", 3))
+        wait(301)
+        assertEquals(1, markReads().size)
+    }
+
+    @Test
+    fun `a live message from someone else is marked read, an own one isn't`() = runTest {
+        openChat(emptyList())
+
+        aliceSends(TestData.message2.copy(id = "msg_mine", seq = 1, readByUserIds = emptySet()))
+        wait(301)
+        assertEquals(emptyList<List<String>>(), markReadIds())
+
+        aliceSends(fromAlice("msg_2", 2))
+        wait(301)
+        assertEquals(listOf(listOf("msg_2")), markReadIds())
+    }
+
+    @Test
+    fun `one mark_read at a time, the next goes out once mine is confirmed`() = runTest {
+        openChat(listOf(fromAlice("msg_1", 1)))
+        wait(301)
+
+        aliceSends(fromAlice("msg_2", 2))
+        wait(301)
+        assertEquals(listOf(listOf("msg_1")), markReadIds()) // still waiting for msg_1
+
+        myReadConfirmed(1)
+        wait(301)
+        assertEquals(listOf(listOf("msg_1"), listOf("msg_2")), markReadIds())
+    }
+
+    @Test
+    fun `a busy chat still sends a mark_read`() = runTest {
+        openChat(emptyList())
+
+        // A message every 200 ms, faster than the 300 ms window, for 2 s.
+        repeat(10) { n ->
+            aliceSends(fromAlice("msg_$n", n + 1L))
+            wait(200)
+        }
+
+        assertTrue(markReads().isNotEmpty())
+        assertEquals(listOf("msg_0", "msg_1"), markReadIds().first())
+    }
+
+    @Test
+    fun `a rate-limited mark_read is retried quietly after a backoff`() = runTest {
+        val snackbars = mutableListOf<ChatDetailEvent>()
+        openChatCollecting(snackbars)
+        wait(301)
+
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.BackendError("RATE_LIMITED", "slow down", markReads().single().requestId)
+        )
+        wait(1_000)
+        assertEquals(1, markReads().size) // still backing off
+
+        wait(1_001)
+        assertEquals(listOf(listOf("msg_1"), listOf("msg_1")), markReadIds())
+        assertEquals(emptyList<ChatDetailEvent>(), snackbars)
+    }
+
+    @Test
+    fun `a mark_read the server refuses for good isn't sent again`() = runTest {
+        val snackbars = mutableListOf<ChatDetailEvent>()
+        openChatCollecting(snackbars)
+        wait(301)
+
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.BackendError(
+                "PERMISSION_DENIED",
+                "User is blocked",
+                markReads().single().requestId
+            )
+        )
+        wait(301)
+        aliceSends(fromAlice("msg_2", 2))
+        wait(301)
+
+        assertEquals(listOf(listOf("msg_1"), listOf("msg_2")), markReadIds())
+        assertEquals(emptyList<ChatDetailEvent>(), snackbars)
+    }
+
+    @Test
+    fun `a mark_read lost with the socket is sent again on reconnect`() = runTest {
+        openChat(listOf(fromAlice("msg_1", 1)))
+        wait(301)
+        assertEquals(1, markReads().size) // the socket took it, then died
+
+        fakeWsRepo.setConnectionStatus(WsConnectionStatus.RECONNECTING)
+        runCurrent()
+        fakeWsRepo.setConnectionStatus(WsConnectionStatus.CONNECTED)
+        wait(301)
+
+        assertEquals(listOf(listOf("msg_1"), listOf("msg_1")), markReadIds())
+    }
+
+    @Test
+    fun `a mark_read without any reply is retried, but not forever`() = runTest {
+        openChat(listOf(fromAlice("msg_1", 1)))
+        wait(301)
+
+        wait(10_000 + 301)
+        assertEquals(2, markReads().size)
+
+        wait(60_000)
+        assertEquals(3, markReads().size) // gives up after 3 unanswered tries
+    }
+
+    @Test
+    fun `a mark_read the socket couldn't send is sent once it reconnects`() = runTest {
+        fakeWsRepo.sendRawSucceeds = false
+        openChat(listOf(fromAlice("msg_1", 1)))
+        wait(301)
+        assertEquals(emptyList<List<String>>(), markReadIds())
+
+        fakeWsRepo.sendRawSucceeds = true
+        fakeWsRepo.setConnectionStatus(WsConnectionStatus.DISCONNECTED)
+        runCurrent()
+        fakeWsRepo.setConnectionStatus(WsConnectionStatus.CONNECTED)
+        wait(301)
+
+        assertEquals(listOf(listOf("msg_1")), markReadIds())
+    }
+
+    /** [openChat] with msg_1 unread, collecting the ViewModel's one-off events into [into]. */
+    private fun TestScope.openChatCollecting(into: MutableList<ChatDetailEvent>) {
+        fakeChatRepo.setGetChatMessagesSuccess(listOf(fromAlice("msg_1", 1)))
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.events.toList(into)
+        }
+        runCurrent()
+        viewModel.onScreenVisibilityChanged(true)
+        runCurrent()
     }
 }

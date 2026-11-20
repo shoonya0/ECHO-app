@@ -51,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shoonya.echo.core.theme.EchoTheme
 import com.shoonya.echo.core.util.formatDaySeparator
@@ -101,6 +102,12 @@ private fun buildChatListItems(messages: List<Message>, now: Instant): List<Chat
 @Composable
 fun ChatDetailScreen(onBack: () -> Unit, viewModel: ChatDetailViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Messages count as read only while the chat is on screen (#10).
+    LifecycleResumeEffect(viewModel) {
+        viewModel.onScreenVisibilityChanged(true)
+        onPauseOrDispose { viewModel.onScreenVisibilityChanged(false) }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -153,14 +160,6 @@ internal fun ChatDetailContent(
     val listState = rememberLazyListState()
     val now = remember { Instant.now() }
     val chatItems = remember(messages) { buildChatListItems(messages, now) }
-
-    // Mark messages as read when visible
-    LaunchedEffect(messages.size) {
-        val unreadByMe = messages
-            .filter { it.senderId != currentUserId && currentUserId !in it.readByUserIds }
-            .map { it.id }
-        // markRead handled via ViewModel
-    }
 
     // Detect scroll to top for pagination. The effect outlives recompositions, so read the
     // latest values: captured directly, hasMore stayed false from before the first load (#7).

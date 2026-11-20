@@ -10,7 +10,7 @@ enum class WsConnectionStatus {
     CONNECTED,
     RECONNECTING,
     DISCONNECTED,
-    FAILED,
+    FAILED
 }
 
 interface WebSocketRepository {
@@ -29,6 +29,7 @@ interface WebSocketRepository {
 
     /**
      * Sends a command without waiting for a response (fire-and-forget).
+     * Returns false when the socket isn't open and the command was dropped.
      */
-    fun sendRaw(command: WebSocketCommand)
+    fun sendRaw(command: WebSocketCommand): Boolean
 }

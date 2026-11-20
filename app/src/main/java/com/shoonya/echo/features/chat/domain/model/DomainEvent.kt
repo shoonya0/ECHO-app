@@ -20,7 +20,10 @@ sealed interface DomainEvent {
     data class UserJoined(val chatId: String, val userId: String) : DomainEvent
     data class UserLeft(val chatId: String, val userId: String) : DomainEvent
     data class ResponseAck(val requestId: String, val messageId: String?) : DomainEvent
-    data class BackendError(val code: String, val message: String) : DomainEvent
+
+    /** An error frame; [requestId] names the request it answers, when the server gave one. */
+    data class BackendError(val code: String, val message: String, val requestId: String? = null) :
+        DomainEvent
 }
 
 enum class PresenceStatus { ONLINE, OFFLINE, AWAY }
@@ -94,5 +97,5 @@ fun ServerFrame.toDomainEvent(): DomainEvent = when (this) {
 
     is ServerFrame.Response -> DomainEvent.ResponseAck(requestId ?: "", data.messageId)
 
-    is ServerFrame.Error -> DomainEvent.BackendError(data.code, data.message)
+    is ServerFrame.Error -> DomainEvent.BackendError(data.code, data.message, requestId)
 }
