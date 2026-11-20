@@ -87,6 +87,66 @@ class EchoWebSocketClientTest {
         assertFalse(client.send("hello"))
     }
 
+    // #1: ChatListViewModel and ChatDetailViewModel both call connect().
+    @Test
+    fun `connect while connected keeps the one open socket`() {
+        client.connect()
+        factory.last.serverOpens()
+
+        client.connect()
+
+        assertEquals(1, factory.sockets.size)
+        assertEquals(null, factory.last.closeCode)
+    }
+
+    @Test
+    fun `connect while connecting keeps the one pending socket`() {
+        client.connect()
+
+        client.connect()
+
+        assertEquals(1, factory.sockets.size)
+    }
+
+    @Test
+    fun `connect after the server closed opens a new socket`() {
+        client.connect()
+        factory.sockets[0].serverOpens()
+        factory.sockets[0].serverCloses(1001, "going away")
+
+        client.connect()
+
+        assertEquals(2, factory.sockets.size)
+    }
+
+    @Test
+    fun `connect after a failure opens a new socket`() {
+        client.connect()
+        factory.sockets[0].fails()
+
+        client.connect()
+
+        assertEquals(2, factory.sockets.size)
+    }
+
+    @Test
+    fun `a replaced socket's late events are ignored`() = runTest {
+        client.connect()
+        val old = factory.sockets[0]
+        old.serverOpens()
+        client.disconnect()
+        client.connect()
+        val events = collect(this)
+
+        old.serverSends("""{"type":"response"}""")
+        old.serverAcksClose()
+
+        assertEquals(emptyList<WebSocketEvent>(), events)
+        assertFalse(client.isConnected())
+        factory.sockets[1].serverOpens()
+        assertTrue(client.isConnected())
+    }
+
     private fun collect(scope: kotlinx.coroutines.test.TestScope): List<WebSocketEvent> {
         val events = mutableListOf<WebSocketEvent>()
         scope.backgroundScope.launch(UnconfinedTestDispatcher(scope.testScheduler)) {

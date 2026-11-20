@@ -59,6 +59,20 @@ class WebSocketRepositoryImplTest {
     }
 
     @Test
+    fun `connect while connected opens no second socket and stays connected`() = runTest {
+        val repo = repository()
+        repo.connect()
+        factory.last.serverOpens()
+        runCurrent()
+
+        repo.connect()
+        runCurrent()
+
+        assertEquals(1, factory.sockets.size)
+        assertEquals(WsConnectionStatus.CONNECTED, repo.status())
+    }
+
+    @Test
     fun `server frames become domain events`() = runTest {
         val repo = repository()
         val events = mutableListOf<DomainEvent>()

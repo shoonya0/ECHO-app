@@ -41,68 +41,117 @@ class EchoWebSocketClient(
         tokenStore: SecureTokenStore
     ) : this(okHttpClient, tokenStore::getAccessToken)
 
-    private var webSocket: WebSocket? = null
+    // Guards webSocket and isOpen. OkHttp calls the listener on its own threads, so the
+    // listener takes the lock too; it only ever does non-blocking work while holding it.
+    private val lock = Any()
 
-    @Volatile
-    private var isConnected = false
+    // The one socket this client owns, from connect() until it closes, fails or is
+    // disconnected. Callbacks from any other socket are stale and ignored (#1).
+    private var webSocket: WebSocket? = null
+    private var isOpen = false
 
     private val _events = MutableSharedFlow<WebSocketEvent>(replay = 0, extraBufferCapacity = 64)
     val events: SharedFlow<WebSocketEvent> = _events.asSharedFlow()
 
+    /** Opens the socket. A no-op while one is already connecting or open. */
     fun connect() {
-        val token = accessToken()
-        if (token == null) {
-            Timber.tag("WS").w("No auth token — cannot connect")
-            _events.tryEmit(WebSocketEvent.Error("No auth token"))
-            return
+        synchronized(lock) {
+            if (webSocket != null) {
+                Timber.tag(
+                    "WS"
+                ).d("connect ignored: a socket is already %s", if (isOpen) "open" else "connecting")
+                return
+            }
+            val token = accessToken()
+            if (token == null) {
+                Timber.tag("WS").w("No auth token — cannot connect")
+                _events.tryEmit(WebSocketEvent.Error("No auth token"))
+                return
+            }
+
+            val request = Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer $token")
+                .build()
+
+            // Assigned under the lock, so a callback that races this call waits for it.
+            webSocket = webSocketFactory.newWebSocket(request, Listener())
+        }
+    }
+
+    fun send(text: String): Boolean = synchronized(lock) { webSocket }?.send(text) ?: false
+
+    /**
+     * Closes the socket on the app's request. Its later close callback is ignored, so
+     * no Disconnected event (and no reconnect) follows.
+     */
+    fun disconnect() {
+        val ws = synchronized(lock) {
+            val current = webSocket
+            webSocket = null
+            isOpen = false
+            current
+        }
+        ws?.close(NORMAL_CLOSURE, "User disconnected")
+    }
+
+    fun isConnected(): Boolean = synchronized(lock) { isOpen }
+
+    private inner class Listener : WebSocketListener() {
+        override fun onOpen(ws: WebSocket, response: Response) {
+            synchronized(lock) {
+                if (ws !== webSocket) return
+                isOpen = true
+                Timber.tag("WS").i("connected")
+                _events.tryEmit(WebSocketEvent.Connected)
+            }
         }
 
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer $token")
-            .build()
-
-        webSocket = webSocketFactory.newWebSocket(
-            request,
-            object : WebSocketListener() {
-                override fun onOpen(ws: WebSocket, response: Response) {
-                    isConnected = true
-                    Timber.tag("WS").i("connected")
-                    _events.tryEmit(WebSocketEvent.Connected)
-                }
-
-                override fun onMessage(ws: WebSocket, text: String) {
-                    Timber.tag("WS").d("received: %s", text.take(200))
-                    _events.tryEmit(WebSocketEvent.Message(text))
-                }
-
-                override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-                    isConnected = false
-                    Timber.tag("WS").e(t, "connection failed, code=%d", response?.code ?: -1)
-                    _events.tryEmit(WebSocketEvent.Error(t.message ?: "Connection failed"))
-                }
-
-                override fun onClosing(ws: WebSocket, code: Int, reason: String) {
-                    Timber.tag("WS").i("closing: %d %s", code, reason)
-                    ws.close(1000, null)
-                }
-
-                override fun onClosed(ws: WebSocket, code: Int, reason: String) {
-                    isConnected = false
-                    Timber.tag("WS").i("closed: %d %s", code, reason)
-                    _events.tryEmit(WebSocketEvent.Disconnected(code, reason))
-                }
+        override fun onMessage(ws: WebSocket, text: String) {
+            synchronized(lock) {
+                if (ws !== webSocket) return
+                Timber.tag("WS").d("received: %s", text.take(200))
+                _events.tryEmit(WebSocketEvent.Message(text))
             }
-        )
+        }
+
+        override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
+            synchronized(lock) {
+                if (!release(ws)) return
+                Timber.tag("WS").e(t, "connection failed, code=%d", response?.code ?: -1)
+                _events.tryEmit(WebSocketEvent.Error(t.message ?: "Connection failed"))
+            }
+        }
+
+        // The server's close frame decides why the socket ended (e.g. 4401, 4403), so report
+        // it here. The onClosed/onFailure that follows belongs to a released socket.
+        override fun onClosing(ws: WebSocket, code: Int, reason: String) {
+            ws.close(NORMAL_CLOSURE, null)
+            synchronized(lock) {
+                if (!release(ws)) return
+                Timber.tag("WS").i("closing: %d %s", code, reason)
+                _events.tryEmit(WebSocketEvent.Disconnected(code, reason))
+            }
+        }
+
+        override fun onClosed(ws: WebSocket, code: Int, reason: String) {
+            synchronized(lock) {
+                if (!release(ws)) return
+                Timber.tag("WS").i("closed: %d %s", code, reason)
+                _events.tryEmit(WebSocketEvent.Disconnected(code, reason))
+            }
+        }
+
+        /** Drops [ws] if it is the current socket; false if it is stale. Call under the lock. */
+        private fun release(ws: WebSocket): Boolean {
+            if (ws !== webSocket) return false
+            webSocket = null
+            isOpen = false
+            return true
+        }
     }
 
-    fun send(text: String): Boolean = webSocket?.send(text) ?: false
-
-    fun disconnect() {
-        isConnected = false
-        webSocket?.close(1000, "User disconnected")
-        webSocket = null
+    private companion object {
+        const val NORMAL_CLOSURE = 1000
     }
-
-    fun isConnected(): Boolean = isConnected
 }

@@ -81,6 +81,9 @@ class WebSocketRepositoryImpl(
     }
 
     override suspend fun connect() {
+        // Several screens call connect(); the client keeps the one socket (#1), and an
+        // open one must not be shown as connecting again.
+        if (wsClient.isConnected()) return
         _connectionStatus.value = WsConnectionStatus.CONNECTING
         wsClient.connect()
     }
