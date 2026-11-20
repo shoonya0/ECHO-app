@@ -12,9 +12,10 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** none · #10 (`mark_read`, PR #14) is merged; open app bugs [#11](https://github.com/shoonya0/ECHO-app/issues/11) (messages lost during history load) and [#13](https://github.com/shoonya0/ECHO-app/issues/13) (chat screen's connection status never updates)
-- **Next step:** #13 (small, one ViewModel) or #11; then tell the backend it can stop writing `readBy` (#42), or the group invite screen (backend #5 step 2). #10 is still unchecked on a device (needs the backend and two accounts)
-- **Updated:** 2026-11-20 at `ac625ec`
+- **Feature:** none · merged 2026-11-20: #13 (PR #16), #2 (#17), #11 (#18), #4 (#19), #3 item 1 banned/inactive (#20), #1 one socket + no reconnect on 4401/4403 (#23). `verify.mjs` on `main`: 195 unit tests, 0 failures. **Checked on the emulator 2026-11-20** against the local backend (two accounts, server logs read by the backend session): #17 header name, #16 no stuck banner, #23 one socket + no reconnect after 4403/4401/logout, #14 one `mark_read` per message → `readSeqs`, #20 REST 403 → "Your account is not active" on Login, #19 `Authorization: ██` in logs (`_docs/evidence/device-2026-11-20-*.png`). #18 not reproduced (needs a slow history load)
+- **In review (2026-11-20, second parallel round, none merged):** WebSocket #25 → PR #32, #26 → #34, #30 → #38 · session end #27 → #40 → 4403 reason #41 → #22 #42 (stacked, merge in that order) · login #21 → #35 (conflicts with #42 in `strings.xml` only: rebase the second one) · chat #28 → #33 → chat part of #29 #48 (stacked), #31 → #36 → `set_typing` throttle #39 (stacked, Refs #3) · contacts/profile part of #29 → #37, paged contacts (#3 item 3) → #43. Each passed `verify.mjs`; none run on a device yet
+- **Next step:** after the merges, retest on the emulator with the backend session (server `main` 57fe185 includes #171: login 403 has `code`). Then [#44](https://github.com/shoonya0/ECHO-app/issues/44)–[#47](https://github.com/shoonya0/ECHO-app/issues/47), #3 item 2 `RATE_LIMITED` retry; unfiled (low): chat list `events` collected twice (`ChatListScreen` + `HomeScreen`), receiver never clears a stuck "Typing…", `leave_chat` launched in a cancelled `viewModelScope`
+- **Updated:** 2026-11-20 at `0227265`
 
 ## What a user can do today
 
