@@ -11,8 +11,9 @@ import com.shoonya.echo.features.chat.domain.model.DomainEvent
 import com.shoonya.echo.features.chat.domain.repository.WsConnectionStatus
 import com.shoonya.echo.features.chat.domain.usecase.CreateDirectChatUseCase
 import com.shoonya.echo.features.chat.domain.usecase.GetChatListUseCase
-import com.shoonya.echo.features.chat.presentation.chatlist.ChatListViewModel
 import com.shoonya.echo.features.chat.presentation.chatlist.ChatListEvent
+import com.shoonya.echo.features.chat.presentation.chatlist.ChatListViewModel
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -29,7 +30,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatListViewModelTest {
@@ -54,7 +54,7 @@ class ChatListViewModelTest {
             getChatListUseCase = GetChatListUseCase(fakeChatRepo),
             createDirectChatUseCase = CreateDirectChatUseCase(fakeChatRepo),
             wsRepository = fakeWsRepo,
-            userIdProvider = fakeUserIdProvider,
+            userIdProvider = fakeUserIdProvider
         )
     }
 
@@ -110,7 +110,10 @@ class ChatListViewModelTest {
 
         assertEquals(1, events.size)
         assertTrue(events.first() is ChatListEvent.NavigateToChat)
-        assertEquals(TestData.CHAT_ID_DIRECT, (events.first() as ChatListEvent.NavigateToChat).chatId)
+        assertEquals(
+            TestData.CHAT_ID_DIRECT,
+            (events.first() as ChatListEvent.NavigateToChat).chatId
+        )
 
         job.cancel()
     }
@@ -135,27 +138,71 @@ class ChatListViewModelTest {
     }
 
     @Test
-    fun `ws NewMessage triggers reload via loadChats`() = runTest {
+    fun `ws NewMessage updates the chat preview and order without a reload`() = runTest {
+        // #28: a live message used to reload the whole list (POST chats/direct + GET messages
+        // per contact). The event carries everything the row shows.
+        val bobChat = TestData.directChat.copy(
+            id = "bob_chat",
+            name = "Bob",
+            lastMessage = TestData.message1.copy(
+                id = "bob_msg",
+                chatId = "bob_chat",
+                createdAt = Instant.now().minusSeconds(10)
+            )
+        )
+        fakeChatRepo.setChatListSuccess(listOf(bobChat, TestData.directChat))
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.loadChats(listOf(TestData.ALICE_ID, TestData.BOB_ID))
+        advanceUntilIdle()
+        assertEquals(1, fakeChatRepo.getChatListCalls)
+
+        val live = TestData.message1.copy(
+            id = "live_msg",
+            content = "Are you there?",
+            createdAt = Instant.now()
+        )
+        fakeWsRepo.emitDomainEvent(DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, live))
+        advanceUntilIdle()
+
+        assertEquals(1, fakeChatRepo.getChatListCalls)
+        val chats = viewModel.state.value.chats
+        assertEquals(listOf(TestData.CHAT_ID_DIRECT, "bob_chat"), chats.map { it.id })
+        assertEquals(live, chats.first().lastMessage)
+    }
+
+    @Test
+    fun `ws NewMessage for a chat not in the list makes no REST call`() = runTest {
         fakeChatRepo.setChatListSuccess(listOf(TestData.directChat))
         createViewModel()
         advanceUntilIdle()
-
         viewModel.loadChats(listOf(TestData.ALICE_ID))
         advanceUntilIdle()
 
-        // Change the fake to return updated data for the reload triggered by WS event
-        val anotherChat = TestData.directChat.copy(
-            id = "another_id",
-            name = "Bob",
-        )
-        fakeChatRepo.setChatListSuccess(listOf(TestData.directChat, anotherChat))
-
         fakeWsRepo.emitDomainEvent(
-            DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, TestData.message1)
+            DomainEvent.NewMessage("unknown_chat", TestData.message1.copy(chatId = "unknown_chat"))
         )
         advanceUntilIdle()
 
-        val state = viewModel.state.value
-        assertEquals(2, state.chats.size)
+        assertEquals(1, fakeChatRepo.getChatListCalls)
+        assertEquals(listOf(TestData.directChat), viewModel.state.value.chats)
+    }
+
+    @Test
+    fun `an older live message does not replace a newer preview`() = runTest {
+        fakeChatRepo.setChatListSuccess(listOf(TestData.directChat))
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.loadChats(listOf(TestData.ALICE_ID))
+        advanceUntilIdle()
+
+        val older = TestData.message1.copy(
+            id = "old_msg",
+            createdAt = TestData.message1.createdAt.minusSeconds(60)
+        )
+        fakeWsRepo.emitDomainEvent(DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, older))
+        advanceUntilIdle()
+
+        assertEquals(TestData.message1, viewModel.state.value.chats.single().lastMessage)
     }
 }
