@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.fakes.FakeAuthRepository
 import com.shoonya.echo.fakes.TestData
+import com.shoonya.echo.features.auth.domain.model.AccountStatus
+import com.shoonya.echo.features.auth.domain.model.AccountUnavailableException
 import com.shoonya.echo.features.auth.domain.usecase.LoginUseCase
 import com.shoonya.echo.features.auth.domain.usecase.SignupUseCase
 import com.shoonya.echo.features.auth.presentation.LoginViewModel
@@ -165,6 +167,55 @@ class LoginViewModelTest {
         advanceUntilIdle()
 
         assertNull(vm.state.value.sessionEndReason)
+    }
+
+    @Test
+    fun `given a banned account, on login, state carries BANNED and no generic error`() = runTest {
+        fakeRepo.setLoginFailure(AccountUnavailableException(AccountStatus.BANNED))
+        submitLogin()
+
+        val state = viewModel.state.value
+        assertFalse(state.isLoading)
+        assertEquals(AccountStatus.BANNED, state.accountStatus)
+        assertNull(state.error)
+        assertFalse(state.isAuthenticated)
+    }
+
+    @Test
+    fun `given an inactive account, on login, state carries INACTIVE and no generic error`() =
+        runTest {
+            fakeRepo.setLoginFailure(AccountUnavailableException(AccountStatus.INACTIVE))
+            submitLogin()
+
+            val state = viewModel.state.value
+            assertEquals(AccountStatus.INACTIVE, state.accountStatus)
+            assertNull(state.error)
+        }
+
+    @Test
+    fun `given an account status, on editing the email, it is cleared`() = runTest {
+        fakeRepo.setLoginFailure(AccountUnavailableException(AccountStatus.BANNED))
+        submitLogin()
+
+        viewModel.onEmailChange("other@echo.com")
+
+        assertNull(viewModel.state.value.accountStatus)
+    }
+
+    @Test
+    fun `given an ordinary login error, state has no account status`() = runTest {
+        fakeRepo.setLoginError("Invalid credentials")
+        submitLogin()
+
+        assertNull(viewModel.state.value.accountStatus)
+        assertNotNull(viewModel.state.value.error)
+    }
+
+    private fun kotlinx.coroutines.test.TestScope.submitLogin() {
+        viewModel.onEmailChange("test@echo.com")
+        viewModel.onPasswordChange("password123")
+        viewModel.onSubmit()
+        advanceUntilIdle()
     }
 
     private fun loginViewModelWith(reason: String) = LoginViewModel(

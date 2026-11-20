@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.core.util.ErrorMapper.toUserMessage
 import com.shoonya.echo.core.util.isValidEmail
+import com.shoonya.echo.features.auth.domain.model.AccountUnavailableException
 import com.shoonya.echo.features.auth.domain.usecase.LoginUseCase
 import com.shoonya.echo.features.auth.domain.usecase.SignupUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,11 +40,15 @@ class LoginViewModel @Inject constructor(
     val events: SharedFlow<LoginEvent> = _events.asSharedFlow()
 
     fun onEmailChange(email: String) {
-        _state.update { it.copy(email = email, emailError = null, error = null) }
+        _state.update {
+            it.copy(email = email, emailError = null, error = null, accountStatus = null)
+        }
     }
 
     fun onPasswordChange(password: String) {
-        _state.update { it.copy(password = password, passwordError = null, error = null) }
+        _state.update {
+            it.copy(password = password, passwordError = null, error = null, accountStatus = null)
+        }
     }
 
     fun onUsernameChange(username: String) {
@@ -58,13 +63,14 @@ class LoginViewModel @Inject constructor(
                 emailError = null,
                 passwordError = null,
                 usernameError = null,
-                error = null
+                error = null,
+                accountStatus = null
             )
         }
     }
 
     fun onSubmit() {
-        _state.update { it.copy(sessionEndReason = null) }
+        _state.update { it.copy(sessionEndReason = null, accountStatus = null) }
         if (_state.value.isLoginMode) {
             login()
         } else {
@@ -98,10 +104,13 @@ class LoginViewModel @Inject constructor(
                 }
                 .onFailure { err ->
                     Timber.tag("LoginVM").e(err, "login failed")
+                    val accountStatus = (err as? AccountUnavailableException)?.status
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            error = err.toUserMessage()
+                            // The screen shows its own text for a banned/inactive account
+                            error = if (accountStatus == null) err.toUserMessage() else null,
+                            accountStatus = accountStatus
                         )
                     }
                 }
