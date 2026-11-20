@@ -74,7 +74,18 @@ class ChatDetailViewModel @Inject constructor(
     // arrive before or even without an ack) with the local optimistic bubble.
     private val inFlightSends = mutableMapOf<String, String>()
 
+    // mark_read (#10): only while the screen is resumed, batched, each message id once.
+    private var isScreenVisible = false
+    private var markReadJob: Job? = null
+    private val sentReadIds = mutableSetOf<String>()
+
     init {
+        // Its own collector: a mark_read dropped while the socket was closed goes out on reconnect.
+        viewModelScope.launch {
+            wsRepository.connectionStatus.collect { status ->
+                if (status == WsConnectionStatus.CONNECTED) scheduleMarkRead()
+            }
+        }
         if (rawChatId.startsWith("new:")) {
             val targetUserId = rawChatId.removePrefix("new:")
             _state.update {
@@ -270,6 +281,7 @@ class ChatDetailViewModel @Inject constructor(
                             readSeqs = readSeqs
                         )
                     }
+                    scheduleMarkRead()
                 }
                 .onFailure { err ->
                     Timber.tag("ChatDetailVM").e(err, "loadMore failed: %s", resolvedChatId)
@@ -279,10 +291,37 @@ class ChatDetailViewModel @Inject constructor(
         }
     }
 
-    fun markMessagesRead(messageIds: List<String>) {
-        if (messageIds.isEmpty()) return
-        viewModelScope.launch {
-            markReadUseCase(resolvedChatId, messageIds)
+    /** Called by the screen on resume (true) and pause (false); reads count only while visible. */
+    fun onScreenVisibilityChanged(visible: Boolean) {
+        isScreenVisible = visible
+        if (visible) scheduleMarkRead() else markReadJob?.cancel()
+    }
+
+    /**
+     * Sends one `mark_read` for the shown messages from others that this user hasn't read, after
+     * a short debounce so a burst of messages makes one request (the server rate-limits, #10).
+     * The server raises this user's read seq to the highest seq among the ids. Ids that couldn't
+     * be sent stay unread here and go out on the next trigger.
+     */
+    private fun scheduleMarkRead() {
+        if (!isScreenVisible) return
+        markReadJob?.cancel()
+        markReadJob = viewModelScope.launch {
+            delay(MARK_READ_DEBOUNCE_MS)
+            if (resolvedChatId.isBlank() || resolvedChatId.startsWith("new:")) return@launch
+            val ids = _state.value.messages
+                .filter {
+                    it.senderId != currentUserId &&
+                        currentUserId !in it.readByUserIds &&
+                        it.id !in sentReadIds
+                }
+                .map { it.id }
+            if (ids.isEmpty()) return@launch
+            markReadUseCase(resolvedChatId, ids)
+                .onSuccess { sentReadIds += ids }
+                .onFailure { err ->
+                    Timber.tag("ChatDetailVM").w(err, "mark_read not sent: %s", resolvedChatId)
+                }
         }
     }
 
@@ -333,6 +372,7 @@ class ChatDetailViewModel @Inject constructor(
                             readSeqs = readSeqs
                         )
                     }
+                    scheduleMarkRead()
                 }
                 .onFailure { err ->
                     Timber.tag("ChatDetailVM").e(err, "loadMessages failed: %s", resolvedChatId)
@@ -378,6 +418,7 @@ class ChatDetailViewModel @Inject constructor(
                         if (matchedRequestId != null) {
                             inFlightSends.remove(matchedRequestId)
                         }
+                        if (message.senderId != currentUserId) scheduleMarkRead()
                     }
                 }
 
@@ -533,6 +574,8 @@ class ChatDetailViewModel @Inject constructor(
     private fun removeOptimistic(messages: List<Message>, optimisticId: String): List<Message> =
         messages.filter { it.id != optimisticId }
 }
+
+private const val MARK_READ_DEBOUNCE_MS = 300L
 
 sealed interface ChatDetailEvent {
     data class ShowSnackbar(val message: String) : ChatDetailEvent

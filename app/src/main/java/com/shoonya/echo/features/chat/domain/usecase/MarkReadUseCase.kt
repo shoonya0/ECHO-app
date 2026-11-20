@@ -11,7 +11,10 @@ class MarkReadUseCase @Inject constructor(private val wsRepository: WebSocketRep
             chatId = chatId,
             metadata = MarkReadMetadata(messageIds = messageIds)
         )
-        wsRepository.sendRaw(command)
-        return Result.success(Unit)
+        return if (wsRepository.sendRaw(command)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException("WebSocket not connected"))
+        }
     }
 }

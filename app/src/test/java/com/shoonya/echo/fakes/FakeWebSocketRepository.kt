@@ -72,7 +72,11 @@ class FakeWebSocketRepository : WebSocketRepository {
         return if (gateSend) sendGate.await() else sendResult
     }
 
-    override fun sendRaw(command: WebSocketCommand) {
-        sentCommands.add(command)
+    /** False acts like a socket that isn't open: [sendRaw] drops the command. */
+    var sendRawSucceeds = true
+
+    override fun sendRaw(command: WebSocketCommand): Boolean {
+        if (sendRawSucceeds) sentCommands.add(command)
+        return sendRawSucceeds
     }
 }

@@ -118,9 +118,9 @@ class WebSocketRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun sendRaw(command: WebSocketCommand) {
+    override fun sendRaw(command: WebSocketCommand): Boolean {
         val text = json.encodeToString(WebSocketCommand.serializer(), command)
-        wsClient.send(text)
+        return wsClient.send(text)
     }
 
     private fun handleRawMessage(raw: String) {

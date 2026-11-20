@@ -10,6 +10,8 @@ import com.shoonya.echo.features.chat.domain.model.Message
 import com.shoonya.echo.features.chat.domain.model.MessageType
 import com.shoonya.echo.features.chat.domain.model.ResponseData
 import com.shoonya.echo.features.chat.domain.model.ServerFrame
+import com.shoonya.echo.features.chat.domain.model.WebSocketCommand
+import com.shoonya.echo.features.chat.domain.repository.WsConnectionStatus
 import com.shoonya.echo.features.chat.domain.usecase.AddReactionUseCase
 import com.shoonya.echo.features.chat.domain.usecase.CreateDirectChatUseCase
 import com.shoonya.echo.features.chat.domain.usecase.GetChatMessagesUseCase
@@ -610,5 +612,123 @@ class ChatDetailViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf<String?>(null), fakeChatRepo.getChatMessagesCursors)
+    }
+
+    // ── mark_read (#10) ──
+
+    private fun markReadIds(): List<List<String>> =
+        fakeWsRepo.sentCommands.filterIsInstance<WebSocketCommand.MarkRead>()
+            .map { it.metadata.messageIds }
+
+    private fun fromAlice(id: String, seq: Long) = TestData.message1.copy(
+        id = id,
+        seq = seq,
+        readByUserIds = emptySet(),
+        createdAt = Instant.now().minusSeconds(100 - seq)
+    )
+
+    @Test
+    fun `visible chat marks the unread messages from others in one mark_read`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(
+            listOf(
+                fromAlice("msg_1", 1),
+                fromAlice("msg_2", 2),
+                fromAlice("msg_3", 3),
+                TestData.message2.copy(id = "msg_4", seq = 4, readByUserIds = emptySet())
+            ),
+            readSeqs = mapOf(TestData.CURRENT_USER_ID to 1L)
+        )
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        viewModel.onScreenVisibilityChanged(true)
+        advanceUntilIdle()
+
+        // msg_1 is already read (my seq is 1), msg_4 is my own.
+        assertEquals(listOf(listOf("msg_2", "msg_3")), markReadIds())
+    }
+
+    @Test
+    fun `nothing is marked read while the screen isn't visible`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(listOf(fromAlice("msg_1", 1)))
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, fromAlice("msg_2", 2))
+        )
+        advanceUntilIdle()
+        assertEquals(emptyList<List<String>>(), markReadIds())
+
+        viewModel.onScreenVisibilityChanged(true)
+        advanceUntilIdle()
+        assertEquals(listOf(listOf("msg_1", "msg_2")), markReadIds())
+
+        viewModel.onScreenVisibilityChanged(false)
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, fromAlice("msg_3", 3))
+        )
+        advanceUntilIdle()
+        assertEquals(1, markReadIds().size)
+    }
+
+    @Test
+    fun `a live message from someone else is marked read, an own one isn't`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(emptyList())
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        viewModel.onScreenVisibilityChanged(true)
+        advanceUntilIdle()
+
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.NewMessage(
+                TestData.CHAT_ID_DIRECT,
+                TestData.message2.copy(id = "msg_mine", seq = 1, readByUserIds = emptySet())
+            )
+        )
+        advanceUntilIdle()
+        assertEquals(emptyList<List<String>>(), markReadIds())
+
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, fromAlice("msg_2", 2))
+        )
+        advanceUntilIdle()
+        assertEquals(listOf(listOf("msg_2")), markReadIds())
+    }
+
+    @Test
+    fun `messages already sent in a mark_read aren't sent again`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(listOf(fromAlice("msg_1", 1)))
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        viewModel.onScreenVisibilityChanged(true)
+        advanceUntilIdle()
+
+        // The server's delivery event for my own read hasn't arrived yet.
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.NewMessage(TestData.CHAT_ID_DIRECT, fromAlice("msg_2", 2))
+        )
+        advanceUntilIdle()
+
+        assertEquals(listOf(listOf("msg_1"), listOf("msg_2")), markReadIds())
+    }
+
+    @Test
+    fun `a mark_read the socket couldn't send is sent once it reconnects`() = runTest {
+        fakeChatRepo.setGetChatMessagesSuccess(listOf(fromAlice("msg_1", 1)))
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        fakeWsRepo.sendRawSucceeds = false
+        createViewModel()
+        viewModel.onScreenVisibilityChanged(true)
+        advanceUntilIdle()
+        assertEquals(emptyList<List<String>>(), markReadIds())
+
+        fakeWsRepo.sendRawSucceeds = true
+        fakeWsRepo.setConnectionStatus(WsConnectionStatus.DISCONNECTED)
+        advanceUntilIdle()
+        fakeWsRepo.setConnectionStatus(WsConnectionStatus.CONNECTED)
+        advanceUntilIdle()
+
+        assertEquals(listOf(listOf("msg_1")), markReadIds())
     }
 }

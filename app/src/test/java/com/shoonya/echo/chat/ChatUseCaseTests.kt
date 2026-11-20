@@ -120,6 +120,15 @@ class MarkReadUseCaseTest {
         assertTrue(cmd is WebSocketCommand.MarkRead)
         assertEquals(messageIds, (cmd as WebSocketCommand.MarkRead).metadata.messageIds)
     }
+
+    @Test
+    fun `when the socket isn't open, then fails`() = runTest {
+        fakeWsRepo.sendRawSucceeds = false
+
+        val result = useCase(TestData.CHAT_ID_DIRECT, listOf(TestData.MESSAGE_ID_1))
+
+        assertTrue(result.isFailure)
+    }
 }
 
 class AddReactionUseCaseTest {
