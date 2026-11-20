@@ -96,6 +96,14 @@ class WebSocketRepositoryImpl(
                 }
             }
         }
+        // The reconnect manager reports giving up on its own flow, not the client's (#25).
+        scope.launch {
+            reconnectManager.events.collect { event ->
+                if (event is WebSocketEvent.ReconnectFailed) {
+                    _connectionStatus.value = WsConnectionStatus.FAILED
+                }
+            }
+        }
     }
 
     override suspend fun connect() {
