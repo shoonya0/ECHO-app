@@ -69,21 +69,22 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `given toggle dark mode, state toggles isDarkMode to true and back to follow system`() = runTest {
-        advanceUntilIdle()
-        // Initial: null = follow system → isDarkMode=false in UI
-        assertFalse(viewModel.state.value.isDarkMode)
-        // Toggle: null → true (force dark)
-        viewModel.onEvent(SettingsEvent.ToggleDarkMode)
-        advanceUntilIdle()
-        assertTrue(viewModel.state.value.isDarkMode)
-        assertEquals(true, fakeRepo.setDarkModeCallValue)
-        // Toggle: true → null (back to follow system)
-        viewModel.onEvent(SettingsEvent.ToggleDarkMode)
-        advanceUntilIdle()
-        assertFalse(viewModel.state.value.isDarkMode)
-        assertEquals(null, fakeRepo.setDarkModeCallValue)
-    }
+    fun `given toggle dark mode, state toggles isDarkMode to true and back to follow system`() =
+        runTest {
+            advanceUntilIdle()
+            // Initial: null = follow system → isDarkMode=false in UI
+            assertFalse(viewModel.state.value.isDarkMode)
+            // Toggle: null → true (force dark)
+            viewModel.onEvent(SettingsEvent.ToggleDarkMode)
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value.isDarkMode)
+            assertEquals(true, fakeRepo.setDarkModeCallValue)
+            // Toggle: true → null (back to follow system)
+            viewModel.onEvent(SettingsEvent.ToggleDarkMode)
+            advanceUntilIdle()
+            assertFalse(viewModel.state.value.isDarkMode)
+            assertEquals(null, fakeRepo.setDarkModeCallValue)
+        }
 
     @Test
     fun `given toggle notifications, state toggles notificationsEnabled`() = runTest {
@@ -123,5 +124,24 @@ class SettingsViewModelTest {
         val state = viewModel.state.value
         assertFalse(state.isDeletingAccount)
         assertNotNull(state.error)
+    }
+
+    // #29: the Settings tab's first resume used to repeat the init load (GET profile/ 2x).
+    @Test
+    fun `first screen resume after init does not load the profile again`() = runTest {
+        viewModel.onEvent(SettingsEvent.ScreenResumed)
+        advanceUntilIdle()
+
+        assertEquals(1, fakeRepo.getProfileCalls)
+    }
+
+    @Test
+    fun `later screen resume reloads the profile once`() = runTest {
+        viewModel.onEvent(SettingsEvent.ScreenResumed)
+        advanceUntilIdle()
+        viewModel.onEvent(SettingsEvent.ScreenResumed) // back from Edit Profile
+        advanceUntilIdle()
+
+        assertEquals(2, fakeRepo.getProfileCalls)
     }
 }

@@ -16,8 +16,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -38,8 +38,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +46,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.shoonya.echo.core.domain.model.Presence
@@ -59,7 +59,7 @@ import com.shoonya.echo.features.settings.domain.model.UserProfile
 fun SettingsScreen(
     onEditProfile: () -> Unit,
     onLogout: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel(),
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -73,9 +73,10 @@ fun SettingsScreen(
         }
     }
 
-    // Reload profile every time the screen becomes visible again
+    // Reload profile every time the screen becomes visible again (the ViewModel skips the
+    // first resume, which init already covers)
     LifecycleResumeEffect(Unit) {
-        viewModel.onEvent(SettingsEvent.LoadProfile)
+        viewModel.onEvent(SettingsEvent.ScreenResumed)
         onPauseOrDispose {}
     }
 
@@ -98,7 +99,7 @@ fun SettingsScreen(
                 TextButton(onClick = { showLogoutDialog = false }) {
                     Text("Cancel")
                 }
-            },
+            }
         )
     }
 
@@ -108,7 +109,9 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Account") },
-            text = { Text("This action cannot be undone. All your data will be permanently deleted.") },
+            text = {
+                Text("This action cannot be undone. All your data will be permanently deleted.")
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -116,13 +119,13 @@ fun SettingsScreen(
                         viewModel.onEvent(SettingsEvent.DeleteAccount)
                     },
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
                     if (state.isDeletingAccount) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
+                            strokeWidth = 2.dp
                         )
                     } else {
                         Text("Delete")
@@ -133,7 +136,7 @@ fun SettingsScreen(
                 TextButton(onClick = { showDeleteDialog = false }) {
                     Text("Cancel")
                 }
-            },
+            }
         )
     }
 
@@ -144,7 +147,7 @@ fun SettingsScreen(
         onToggleDarkMode = { viewModel.onEvent(SettingsEvent.ToggleDarkMode) },
         onToggleNotifications = { viewModel.onEvent(SettingsEvent.ToggleNotifications) },
         onLogout = { showLogoutDialog = true },
-        onDeleteAccount = { showDeleteDialog = true },
+        onDeleteAccount = { showDeleteDialog = true }
     )
 }
 
@@ -156,7 +159,7 @@ private fun SettingsContent(
     onToggleDarkMode: () -> Unit,
     onToggleNotifications: () -> Unit,
     onLogout: () -> Unit,
-    onDeleteAccount: () -> Unit,
+    onDeleteAccount: () -> Unit
 ) {
     val profile = state.profile
     val isLoading = state.isLoading
@@ -167,28 +170,28 @@ private fun SettingsContent(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(16.dp)
     ) {
         // Section: Profile
         Text(
             text = "Profile",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 8.dp),
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
         Card(
             onClick = onEditProfile,
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            ),
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 if (profile != null) {
                     AsyncImage(
@@ -197,7 +200,7 @@ private fun SettingsContent(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Crop
                     )
                 } else {
                     Icon(
@@ -206,7 +209,7 @@ private fun SettingsContent(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Spacer(modifier = Modifier.width(16.dp))
@@ -215,25 +218,25 @@ private fun SettingsContent(
                         Text(
                             text = profile.displayName.ifBlank { profile.username },
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = profile.email,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else if (isLoading) {
                         Text(
                             text = "Loading profile...",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = "Edit profile",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -243,7 +246,7 @@ private fun SettingsContent(
                 text = error,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.padding(top = 8.dp)
             )
             TextButton(onClick = onRetry) {
                 Text("Retry")
@@ -255,7 +258,7 @@ private fun SettingsContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(32.dp),
-                contentAlignment = Alignment.Center,
+                contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator()
             }
@@ -270,21 +273,21 @@ private fun SettingsContent(
             text = "Preferences",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 8.dp),
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
         SettingsToggleRow(
             icon = Icons.Default.DarkMode,
             title = "Dark Mode",
             checked = isDarkMode,
-            onCheckedChange = onToggleDarkMode,
+            onCheckedChange = onToggleDarkMode
         )
 
         SettingsToggleRow(
             icon = Icons.Default.Notifications,
             title = "Notifications",
             checked = notificationsEnabled,
-            onCheckedChange = onToggleNotifications,
+            onCheckedChange = onToggleNotifications
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -296,7 +299,7 @@ private fun SettingsContent(
             text = "About",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 8.dp),
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
         AboutRow(icon = Icons.Default.Info, title = "Version", value = "1.0.0")
@@ -310,12 +313,12 @@ private fun SettingsContent(
             onClick = onDeleteAccount,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.textButtonColors(
-                contentColor = MaterialTheme.colorScheme.error,
-            ),
+                contentColor = MaterialTheme.colorScheme.error
+            )
         ) {
             Icon(
                 imageVector = Icons.Default.Delete,
-                contentDescription = null,
+                contentDescription = null
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Delete Account")
@@ -326,19 +329,19 @@ private fun SettingsContent(
             modifier = Modifier.fillMaxWidth(),
             enabled = state.isLoggingOut.not(),
             colors = ButtonDefaults.textButtonColors(
-                contentColor = MaterialTheme.colorScheme.error,
-            ),
+                contentColor = MaterialTheme.colorScheme.error
+            )
         ) {
             if (state.isLoggingOut) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.error
                 )
             } else {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Logout,
-                    contentDescription = null,
+                    contentDescription = null
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -352,29 +355,29 @@ private fun SettingsToggleRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     checked: Boolean,
-    onCheckedChange: () -> Unit,
+    onCheckedChange: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f)
         )
         Switch(
             checked = checked,
-            onCheckedChange = { onCheckedChange() },
+            onCheckedChange = { onCheckedChange() }
         )
     }
 }
@@ -383,36 +386,40 @@ private fun SettingsToggleRow(
 private fun AboutRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
-    value: String,
+    value: String
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 @Preview(name = "Light", showBackground = true)
-@Preview(name = "Dark", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun SettingsContentPreview() {
     EchoTheme {
@@ -428,19 +435,19 @@ private fun SettingsContentPreview() {
                     statusMessage = "Available",
                     bio = "Hello world",
                     presence = Presence(PresenceStatus.ONLINE, true, null),
-                    isActive = true,
+                    isActive = true
                 ),
                 isLoading = false,
                 error = null,
                 isDarkMode = false,
-                notificationsEnabled = true,
+                notificationsEnabled = true
             ),
             onRetry = {},
             onEditProfile = {},
             onToggleDarkMode = {},
             onToggleNotifications = {},
             onLogout = {},
-            onDeleteAccount = {},
+            onDeleteAccount = {}
         )
     }
 }

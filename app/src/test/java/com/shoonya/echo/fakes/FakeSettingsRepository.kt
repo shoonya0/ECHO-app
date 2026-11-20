@@ -20,8 +20,8 @@ class FakeSettingsRepository : SettingsRepository {
             statusMessage = "Hello",
             bio = "Test bio",
             presence = Presence(PresenceStatus.ONLINE, true, null),
-            isActive = true,
-        ),
+            isActive = true
+        )
     )
     private var updateProfileResult: Result<UserProfile> = Result.success(
         UserProfile(
@@ -34,8 +34,8 @@ class FakeSettingsRepository : SettingsRepository {
             statusMessage = "Updated status",
             bio = "Updated bio",
             presence = Presence(PresenceStatus.ONLINE, true, null),
-            isActive = true,
-        ),
+            isActive = true
+        )
     )
     private var deleteAccountResult: Result<Unit> = Result.success(Unit)
 
@@ -43,6 +43,8 @@ class FakeSettingsRepository : SettingsRepository {
 
     val updateProfileCalls = mutableListOf<Map<String, String?>>()
     var deleteAccountCalled = false
+    var getProfileCalls = 0
+        private set
     var setDarkModeCallValue: Boolean? = null
 
     fun setProfileResult(result: Result<UserProfile>) {
@@ -61,21 +63,24 @@ class FakeSettingsRepository : SettingsRepository {
         _isDarkMode.value = enabled
     }
 
-    override suspend fun getProfile(): Result<UserProfile> = profileResult
+    override suspend fun getProfile(): Result<UserProfile> {
+        getProfileCalls++
+        return profileResult
+    }
 
     override suspend fun updateProfile(
         displayName: String?,
         avatar: String?,
         statusMessage: String?,
-        bio: String?,
+        bio: String?
     ): Result<UserProfile> {
         updateProfileCalls.add(
             mapOf(
                 "displayName" to displayName,
                 "avatar" to avatar,
                 "statusMessage" to statusMessage,
-                "bio" to bio,
-            ),
+                "bio" to bio
+            )
         )
         return updateProfileResult
     }

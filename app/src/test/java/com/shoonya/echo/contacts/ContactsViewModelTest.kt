@@ -67,7 +67,7 @@ class ContactsViewModelTest {
             addToFavoritesUseCase = AddToFavoritesUseCase(fakeRepo),
             removeContactUseCase = RemoveContactUseCase(fakeRepo),
             removeFromFavoritesUseCase = RemoveFromFavoritesUseCase(fakeRepo),
-            getUserProfileUseCase = GetUserProfileUseCase(fakeRepo),
+            getUserProfileUseCase = GetUserProfileUseCase(fakeRepo)
         )
     }
 
@@ -423,5 +423,47 @@ class ContactsViewModelTest {
         assertEquals(1, state.favorites.size)
         assertEquals("unknown_user_id_123", state.favorites.first().id)
         assertTrue(state.favorites.first().isFavorite)
+    }
+
+    // #29: Home's first resume used to re-run the load the ViewModel had just started in
+    // init, so every contact endpoint was hit twice for one screen load.
+    @Test
+    fun `first screen resume after init does not load contacts again`() = runTest {
+        createViewModel()
+        viewModel.onEvent(ContactsEvent.ScreenResumed)
+        advanceUntilIdle()
+
+        assertEachListLoaded(times = 1)
+    }
+
+    @Test
+    fun `screen resume while a load is in flight does not start a second load`() = runTest {
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.onEvent(ContactsEvent.ScreenResumed) // first resume, skipped
+        viewModel.onEvent(ContactsEvent.Refresh)
+        viewModel.onEvent(ContactsEvent.ScreenResumed) // Refresh still running
+        advanceUntilIdle()
+
+        assertEachListLoaded(times = 2)
+    }
+
+    @Test
+    fun `later screen resume reloads contacts once`() = runTest {
+        createViewModel()
+        viewModel.onEvent(ContactsEvent.ScreenResumed)
+        advanceUntilIdle()
+        viewModel.onEvent(ContactsEvent.ScreenResumed) // back from another screen
+        advanceUntilIdle()
+
+        assertEachListLoaded(times = 2)
+    }
+
+    private fun assertEachListLoaded(times: Int) {
+        assertEquals("contacts", times, fakeRepo.getContactsCalls)
+        assertEquals("favorites", times, fakeRepo.getFavoritesCalls)
+        assertEquals("blocked", times, fakeRepo.getBlockedUsersCalls)
+        assertEquals("requests", times, fakeRepo.getIncomingRequestsCalls)
+        assertEquals("sent-requests", times, fakeRepo.getOutgoingRequestsCalls)
     }
 }
