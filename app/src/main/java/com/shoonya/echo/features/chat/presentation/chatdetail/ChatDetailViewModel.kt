@@ -418,11 +418,13 @@ class ChatDetailViewModel @Inject constructor(
                 .onSuccess { page ->
                     _state.update {
                         // Merge, don't replace: a read receipt may have arrived during the load,
-                        // and the page's readSeqs can be the older value.
+                        // and the page's readSeqs can be the older value. The same goes for the
+                        // messages: a live message or an optimistic send may already be shown (#11).
                         val readSeqs = mergeReadSeqs(it.readSeqs, page.readSeqs)
                         it.copy(
                             isLoading = false,
-                            messages = page.messages.map { msg -> msg.withReadState(readSeqs) },
+                            messages = mergeMessages(it.messages, page.messages)
+                                .map { msg -> msg.withReadState(readSeqs) },
                             hasMore = page.hasMore,
                             nextCursor = page.nextCursor,
                             readSeqs = readSeqs
