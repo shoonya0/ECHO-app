@@ -10,61 +10,65 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
+/**
+ * The five contact lists come in pages (server #39): `page` counts from 1, `limit` is 1 to
+ * 100, and `pagination.total_pages` says how many pages there are. The repository reads
+ * every page.
+ */
+const val CONTACTS_PAGE_SIZE = 100
+
 interface ContactsApiService {
     @GET("users/contacts/")
     suspend fun getContacts(
-        @Query("limit") limit: Int = 50,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = CONTACTS_PAGE_SIZE
     ): ApiResponse<PaginatedData<ContactDto>>
 
     @GET("users/contacts/requests")
     suspend fun getContactRequests(
-        @Query("limit") limit: Int = 50,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = CONTACTS_PAGE_SIZE
     ): ApiResponse<PaginatedData<ContactDto>>
 
     @GET("users/contacts/sent-requests")
     suspend fun getSentContactRequests(
-        @Query("limit") limit: Int = 50,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = CONTACTS_PAGE_SIZE
     ): ApiResponse<PaginatedData<ContactDto>>
 
     @GET("users/contacts/blocked")
     suspend fun getBlockedUsers(
-        @Query("limit") limit: Int = 50,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = CONTACTS_PAGE_SIZE
     ): ApiResponse<PaginatedData<ContactDto>>
 
     @GET("users/contacts/favorites")
     suspend fun getFavorites(
-        @Query("limit") limit: Int = 50,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = CONTACTS_PAGE_SIZE
     ): ApiResponse<PaginatedData<ContactDto>>
 
     @POST("users/contacts/{userId}")
-    suspend fun sendContactRequest(
-        @Path("userId") userId: String,
-    ): ApiResponse<Unit>
+    suspend fun sendContactRequest(@Path("userId") userId: String): ApiResponse<Unit>
 
     @PUT("users/contacts/{requestId}")
     suspend fun acceptOrDeclineRequest(
         @Path("requestId") requestId: String,
-        @Query("action") action: String,
+        @Query("action") action: String
     ): ApiResponse<Unit>
 
     @DELETE("users/contacts/{contactId}")
-    suspend fun removeContact(
-        @Path("contactId") contactId: String,
-    ): ApiResponse<Unit>
+    suspend fun removeContact(@Path("contactId") contactId: String): ApiResponse<Unit>
 
     @POST("users/contacts/blockUnblock/{userId}")
     suspend fun blockUnblockUser(
         @Path("userId") userId: String,
-        @Query("action") action: String = "block",
+        @Query("action") action: String = "block"
     ): ApiResponse<Unit>
 
     @POST("users/contacts/favorite/{userId}")
-    suspend fun addToFavorites(
-        @Path("userId") userId: String,
-    ): ApiResponse<Unit>
+    suspend fun addToFavorites(@Path("userId") userId: String): ApiResponse<Unit>
 
     @DELETE("users/contacts/favorite/{userId}")
-    suspend fun removeFromFavorites(
-        @Path("userId") userId: String,
-    ): ApiResponse<Unit>
+    suspend fun removeFromFavorites(@Path("userId") userId: String): ApiResponse<Unit>
 }
