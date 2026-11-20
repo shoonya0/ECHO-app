@@ -12,9 +12,9 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** fix [#10](https://github.com/shoonya0/ECHO-app/issues/10) on `fix/10-mark-read` (`cb4a77d` format, `4794e10` fix): the chat screen sends one debounced `mark_read` while resumed; verify passed, 138/138 unit tests; not pushed, no device check yet
-- **Next step:** review (`/code-review`), push, open the PR; then [#11](https://github.com/shoonya0/ECHO-app/issues/11), telling the backend it can stop writing `readBy` (#42), or the group invite screen (backend #5 step 2)
-- **Updated:** 2026-11-20 at `4794e10`
+- **Feature:** fix [#10](https://github.com/shoonya0/ECHO-app/issues/10) on `fix/10-mark-read` (`cb4a77d` format, `4794e10` fix, `a6d7bb0` review fixes: one `mark_read` in flight until this user's `delivery` confirms it, retry on `RATE_LIMITED`/drop/timeout, throttle); verify passed, 143/143 unit tests; not pushed, no device check yet
+- **Next step:** push and open the PR; then [#11](https://github.com/shoonya0/ECHO-app/issues/11), [#13](https://github.com/shoonya0/ECHO-app/issues/13), telling the backend it can stop writing `readBy` (#42), or the group invite screen (backend #5 step 2)
+- **Updated:** 2026-11-20 at `a6d7bb0`
 
 ## What a user can do today
 
@@ -111,7 +111,7 @@ candidate GitHub issue; filed ones link to it.
 7. Minor, seen on the emulator (VERIFIED by screenshot, cause ASSUMED): in the dark theme the
    status-bar icons are dark on the dark background (`setup-smoke-login.png`); the app's
    theme and the edge-to-edge system-bar style probably disagree (`MainActivity.kt`).
-8. **Chat screen's connection status never updates** (VERIFIED in code, not filed yet):
+8. **Chat screen's connection status never updates** ([#13](https://github.com/shoonya0/ECHO-app/issues/13); VERIFIED in code):
    `ChatDetailViewModel.connectAndJoin()` calls `collectWsEvents()`, which never returns, before
    `collectConnectionStatus()`, so the state stays `CONNECTING` and the banner likely never clears.
 9. Minor: `ChatCache` uses unsynchronised collections from IO coroutines
