@@ -371,6 +371,91 @@ class ChatDetailViewModelTest {
         assertTrue(viewModel.state.value.typingUserIds.isEmpty())
     }
 
+    /** The isTyping value of each set_typing sent so far, in order. */
+    private fun sentTyping(): List<Boolean> =
+        fakeWsRepo.sentCommands.filterIsInstance<WebSocketCommand.SetTyping>()
+            .map { it.metadata.isTyping }
+
+    private fun TestScope.openChatForTyping() {
+        fakeChatRepo.setGetChatMessagesSuccess(emptyList())
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `typing sends set_typing true at once and at most once per refresh window`() = runTest {
+        // #3 (RATE_LIMITED): one keystroke every 500 ms for 5 s must not send a frame each time.
+        openChatForTyping()
+
+        viewModel.onInputChanged("H")
+        runCurrent()
+        assertEquals(listOf(true), sentTyping())
+
+        var text = "H"
+        repeat(10) {
+            advanceTimeBy(500)
+            text += "i"
+            viewModel.onInputChanged(text)
+            runCurrent()
+        }
+
+        // 5 s of typing: the first keystroke and one refresh after 3 s.
+        assertEquals(listOf(true, true), sentTyping())
+    }
+
+    @Test
+    fun `typing stops with one set_typing false after the user pauses`() = runTest {
+        openChatForTyping()
+
+        viewModel.onInputChanged("Hel")
+        runCurrent()
+        advanceTimeBy(2_000)
+        viewModel.onInputChanged("Hello")
+        runCurrent()
+        advanceTimeBy(2_900)
+        assertEquals(listOf(true), sentTyping())
+
+        advanceTimeBy(200)
+        assertEquals(listOf(true, false), sentTyping())
+
+        advanceUntilIdle()
+        assertEquals(listOf(true, false), sentTyping())
+    }
+
+    @Test
+    fun `clearing the input sends false only after a true`() = runTest {
+        openChatForTyping()
+
+        viewModel.onInputChanged("")
+        runCurrent()
+        assertEquals(emptyList<Boolean>(), sentTyping())
+
+        viewModel.onInputChanged("a")
+        viewModel.onInputChanged("")
+        viewModel.onInputChanged("")
+        advanceUntilIdle()
+
+        assertEquals(listOf(true, false), sentTyping())
+    }
+
+    @Test
+    fun `sending a message stops typing once`() = runTest {
+        openChatForTyping()
+        fakeWsRepo.setSendResult(
+            Result.success(
+                ServerFrame.Response(data = ResponseData(success = true), requestId = null)
+            )
+        )
+
+        viewModel.onInputChanged("Hi")
+        runCurrent()
+        viewModel.sendMessage()
+        advanceUntilIdle()
+
+        assertEquals(listOf(true, false), sentTyping())
+    }
+
     @Test
     fun `ws ReadReceipt marks every message up to readUpToSeq as read by that member`() = runTest {
         // Own messages 1..3, none read yet (#42: read state comes from seqs, not readBy).
