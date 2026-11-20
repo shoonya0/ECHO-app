@@ -11,6 +11,7 @@ import com.shoonya.echo.features.chat.domain.usecase.CreateDirectChatUseCase
 import com.shoonya.echo.features.chat.domain.usecase.GetChatListUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -29,9 +30,9 @@ class ChatListViewModel @Inject constructor(
     userIdProvider: UserIdProvider
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(
-        ChatListUiState(currentUserId = userIdProvider.getUserId() ?: "")
-    )
+    private val currentUserId: String = userIdProvider.getUserId() ?: ""
+
+    private val _state = MutableStateFlow(ChatListUiState(currentUserId = currentUserId))
     val state: StateFlow<ChatListUiState> = _state.asStateFlow()
 
     private val _events = MutableSharedFlow<ChatListEvent>()
@@ -44,6 +45,10 @@ class ChatListViewModel @Inject constructor(
 
     private var cachedContactIds: List<String> = emptyList()
 
+    // The load running now and the contacts it is for: the same request again joins it (#29).
+    private var loadJob: Job? = null
+    private var loadingContactIds: List<String>? = null
+
     init {
         // Connect WebSocket once (shared singleton) and start collecting presence/chat events
         viewModelScope.launch {
@@ -52,9 +57,17 @@ class ChatListViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Loads the chat list for [contactIds]: a `POST chats/direct` and a `GET messages` per
+     * contact. Does nothing while a load for the same contacts runs; a load for other contacts
+     * replaces it.
+     */
     fun loadChats(contactIds: List<String>) {
+        if (loadJob?.isActive == true && loadingContactIds == contactIds) return
+        loadJob?.cancel()
         cachedContactIds = contactIds
-        viewModelScope.launch {
+        loadingContactIds = contactIds
+        loadJob = viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             getChatListUseCase(contactIds)
                 .onSuccess { chats ->
@@ -96,17 +109,23 @@ class ChatListViewModel @Inject constructor(
                     )
                 }
 
-                is DomainEvent.UserJoined,
-                is DomainEvent.UserLeft -> {
-                    // Refresh chat list so new/removed chats appear
-                    if (cachedContactIds.isNotEmpty()) {
-                        loadChats(cachedContactIds)
-                    }
-                }
+                is DomainEvent.UserJoined -> onMembershipChanged(event.userId)
+
+                is DomainEvent.UserLeft -> onMembershipChanged(event.userId)
 
                 else -> { /* no-op for chat list */ }
             }
         }
+    }
+
+    /**
+     * Reloads the list so new or removed chats show. Not for this user's own join or leave:
+     * the server sends those back on every chat open and close, and the list doesn't change
+     * (#29).
+     */
+    private fun onMembershipChanged(userId: String) {
+        if (userId == currentUserId || cachedContactIds.isEmpty()) return
+        loadChats(cachedContactIds)
     }
 
     /**

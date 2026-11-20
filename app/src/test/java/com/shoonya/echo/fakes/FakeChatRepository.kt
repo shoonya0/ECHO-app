@@ -19,6 +19,10 @@ class FakeChatRepository : ChatRepository {
     var getChatListCalls = 0
         private set
 
+    /** How many times createDirectChat was called (a `POST chats/direct/<user>` each). */
+    var createDirectChatCalls = 0
+        private set
+
     /** The `before` cursor of each getChatMessages call, in order. */
     val getChatMessagesCursors = mutableListOf<String?>()
     private var sendMessageResult: Result<Message> = Result.failure(
@@ -85,8 +89,10 @@ class FakeChatRepository : ChatRepository {
         return chatListResult
     }
 
-    override suspend fun createDirectChat(targetUserId: String): Result<Chat> =
-        createDirectChatResult
+    override suspend fun createDirectChat(targetUserId: String): Result<Chat> {
+        createDirectChatCalls++
+        return createDirectChatResult
+    }
 
     override suspend fun getChatMessages(
         chatId: String,
