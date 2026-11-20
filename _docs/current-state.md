@@ -12,9 +12,9 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** none · #10 (`mark_read`, PR #14) is merged; open app bugs [#11](https://github.com/shoonya0/ECHO-app/issues/11) (messages lost during history load) and [#13](https://github.com/shoonya0/ECHO-app/issues/13) (chat screen's connection status never updates)
-- **Next step:** #13 (small, one ViewModel) or #11; then tell the backend it can stop writing `readBy` (#42), or the group invite screen (backend #5 step 2). #10 is still unchecked on a device (needs the backend and two accounts)
-- **Updated:** 2026-11-20 at `ac625ec`
+- **Feature:** none · six fixes in review, each its own PR from `main`, pairwise conflict-free: #13 → [PR #16](https://github.com/shoonya0/ECHO-app/pull/16), #2 → [#17](https://github.com/shoonya0/ECHO-app/pull/17), #11 → [#18](https://github.com/shoonya0/ECHO-app/pull/18), #4 → [#19](https://github.com/shoonya0/ECHO-app/pull/19) (`/security-review` first), #3 item 1 (banned/inactive) → [#20](https://github.com/shoonya0/ECHO-app/pull/20), #1 (one socket, no reconnect on 4401/4403) → [#23](https://github.com/shoonya0/ECHO-app/pull/23) (`/code-review` first). None checked on a device yet
+- **Next step:** after #20 and #23 merge, pass the 4403 reason to `SessionManager.expire(reason)` in `WebSocketRepositoryImpl.endSession`; then [#21](https://github.com/shoonya0/ECHO-app/issues/21) (banned login message), [#22](https://github.com/shoonya0/ECHO-app/issues/22) (`ACCOUNT_NOT_FOUND` clears local data), #3 items 2–3 (RATE_LIMITED, paged contacts). Found in #23, not filed yet: `ReconnectFailed` never collected (status never `FAILED`), handshake 401/403 and no-token retry 5 times
+- **Updated:** 2026-11-20 at `c86c10c`
 
 ## What a user can do today
 
