@@ -16,7 +16,9 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import timber.log.Timber
 
 /**
  * Drives the real client, reconnect manager and repository against a fake socket factory;
@@ -91,6 +93,43 @@ class WebSocketRepositoryImplTest {
         runCurrent()
 
         assertEquals(1, events.size)
+    }
+
+    // #30: the server's first frame on every socket; ResponseData can't hold it.
+    @Test
+    fun `the welcome frame is recognised quietly and later frames still work`() = runTest {
+        val errors = mutableListOf<String>()
+        val tree = object : Timber.Tree() {
+            override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+                if (priority >= 5) errors += message // 5 = Log.WARN
+            }
+        }
+        Timber.plant(tree)
+        try {
+            val repo = repository()
+            val events = mutableListOf<DomainEvent>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                repo.events.collect { events += it }
+            }
+            repo.connect()
+            factory.last.serverOpens()
+
+            factory.last.serverSends(
+                """{"type":"response","userId":"u1",
+                   "data":{"clientId":"cl1","instanceId":"s1","status":"connected"},
+                   "timestamp":"2026-11-20T10:00:00Z"}"""
+            )
+            factory.last.serverSends(
+                """{"type":"typing","chatId":"c1","userId":"u2","data":{"userId":"u2","isTyping":true}}"""
+            )
+            runCurrent()
+
+            assertEquals(emptyList<String>(), errors)
+            assertEquals(1, events.size)
+            assertTrue(events.single() is DomainEvent.TypingUpdate)
+        } finally {
+            Timber.uproot(tree)
+        }
     }
 
     @Test

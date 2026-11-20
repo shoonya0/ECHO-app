@@ -7,6 +7,7 @@ import com.shoonya.echo.features.chat.data.remote.WsSessionEnder
 import com.shoonya.echo.features.chat.domain.model.DomainEvent
 import com.shoonya.echo.features.chat.domain.model.ServerFrame
 import com.shoonya.echo.features.chat.domain.model.WebSocketCommand
+import com.shoonya.echo.features.chat.domain.model.isWelcomeFrame
 import com.shoonya.echo.features.chat.domain.model.toDomainEvent
 import com.shoonya.echo.features.chat.domain.repository.WebSocketRepository
 import com.shoonya.echo.features.chat.domain.repository.WsConnectionStatus
@@ -186,7 +187,13 @@ class WebSocketRepositoryImpl(
 
     private fun handleRawMessage(raw: String) {
         try {
-            val frame = json.decodeFromString(ServerFrame.serializer(), raw)
+            val element = json.parseToJsonElement(raw)
+            if (element.isWelcomeFrame()) {
+                // Nothing reads the welcome's clientId/instanceId yet (#30).
+                Timber.tag("WS").d("welcome frame received")
+                return
+            }
+            val frame = json.decodeFromJsonElement(ServerFrame.serializer(), element)
             val requestId = frame.requestId
             if (requestId != null) {
                 val deferred = pendingRequests[requestId]
