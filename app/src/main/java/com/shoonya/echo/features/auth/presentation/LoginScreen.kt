@@ -1,5 +1,6 @@
 package com.shoonya.echo.features.auth.presentation
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -37,13 +39,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shoonya.echo.R
+import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.core.theme.EchoTheme
 
 @Composable
-fun LoginScreen(
-    viewModel: LoginViewModel = hiltViewModel(),
-    onNavigateToHome: () -> Unit,
-) {
+fun LoginScreen(viewModel: LoginViewModel = hiltViewModel(), onNavigateToHome: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -76,7 +77,16 @@ fun LoginScreen(
         onSubmit = viewModel::onSubmit,
         onToggleMode = viewModel::onToggleMode,
         onClearError = viewModel::clearError,
+        sessionEndReason = state.sessionEndReason
     )
+}
+
+/** Why the server ended the session, as text for the user; null when there is nothing to say. */
+@StringRes
+internal fun SessionEndReason.messageRes(): Int? = when (this) {
+    SessionEndReason.ACCOUNT_BANNED -> R.string.session_end_account_banned
+    SessionEndReason.ACCOUNT_INACTIVE -> R.string.session_end_account_inactive
+    SessionEndReason.EXPIRED -> null
 }
 
 @Composable
@@ -98,23 +108,32 @@ internal fun LoginContent(
     onSubmit: () -> Unit,
     onToggleMode: () -> Unit,
     onClearError: () -> Unit,
+    sessionEndReason: SessionEndReason? = null
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp),
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = if (isLoginMode) "Welcome Back" else "Create Account",
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onBackground
             )
+
+            sessionEndReason?.messageRes()?.let { messageRes ->
+                Text(
+                    text = stringResource(messageRes),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -127,9 +146,9 @@ internal fun LoginContent(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next,
+                    imeAction = ImeAction.Next
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
             )
 
             if (!isLoginMode) {
@@ -141,9 +160,9 @@ internal fun LoginContent(
                     supportingText = usernameError?.let { { Text(it) } },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Next,
+                        imeAction = ImeAction.Next
                     ),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
@@ -154,27 +173,39 @@ internal fun LoginContent(
                 isError = passwordError != null,
                 supportingText = passwordError?.let { { Text(it) } },
                 singleLine = true,
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
                 trailingIcon = {
                     IconButton(onClick = onTogglePasswordVisibility) {
                         Icon(
-                            imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                            imageVector = if (passwordVisible) {
+                                Icons.Filled.Visibility
+                            } else {
+                                Icons.Filled.VisibilityOff
+                            },
+                            contentDescription = if (passwordVisible) {
+                                "Hide password"
+                            } else {
+                                "Show password"
+                            }
                         )
                     }
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done,
+                    imeAction = ImeAction.Done
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
             )
 
             if (error != null) {
                 Text(
                     text = error,
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
 
@@ -185,24 +216,28 @@ internal fun LoginContent(
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(48.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
                     Text(
-                        text = if (isLoginMode) "Log In" else "Sign Up",
+                        text = if (isLoginMode) "Log In" else "Sign Up"
                     )
                 }
             }
 
             TextButton(onClick = onToggleMode) {
                 Text(
-                    text = if (isLoginMode) "Don't have an account? Sign Up" else "Already have an account? Log In",
+                    text = if (isLoginMode) {
+                        "Don't have an account? Sign Up"
+                    } else {
+                        "Already have an account? Log In"
+                    }
                 )
             }
         }
@@ -210,7 +245,11 @@ internal fun LoginContent(
 }
 
 @Preview(name = "Light - Login", showBackground = true)
-@Preview(name = "Dark - Login", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Dark - Login",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun LoginContentPreview() {
     EchoTheme {
@@ -231,7 +270,7 @@ private fun LoginContentPreview() {
             onTogglePasswordVisibility = {},
             onSubmit = {},
             onToggleMode = {},
-            onClearError = {},
+            onClearError = {}
         )
     }
 }
@@ -257,7 +296,7 @@ private fun SignupContentPreview() {
             onTogglePasswordVisibility = {},
             onSubmit = {},
             onToggleMode = {},
-            onClearError = {},
+            onClearError = {}
         )
     }
 }
@@ -283,7 +322,7 @@ private fun LoginErrorPreview() {
             onTogglePasswordVisibility = {},
             onSubmit = {},
             onToggleMode = {},
-            onClearError = {},
+            onClearError = {}
         )
     }
 }

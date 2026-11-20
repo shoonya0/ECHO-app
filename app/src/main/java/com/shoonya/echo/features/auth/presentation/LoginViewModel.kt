@@ -1,12 +1,15 @@
 package com.shoonya.echo.features.auth.presentation
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.core.util.ErrorMapper.toUserMessage
 import com.shoonya.echo.core.util.isValidEmail
 import com.shoonya.echo.features.auth.domain.usecase.LoginUseCase
 import com.shoonya.echo.features.auth.domain.usecase.SignupUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -16,15 +19,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
     private val signupUseCase: SignupUseCase,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(LoginUiState())
+    private val _state = MutableStateFlow(
+        LoginUiState(
+            sessionEndReason = savedStateHandle.get<String>(ARG_SESSION_END_REASON)
+                ?.let { arg -> SessionEndReason.entries.find { it.name == arg } }
+        )
+    )
     val state: StateFlow<LoginUiState> = _state.asStateFlow()
 
     private val _events = MutableSharedFlow<LoginEvent>()
@@ -50,12 +58,13 @@ class LoginViewModel @Inject constructor(
                 emailError = null,
                 passwordError = null,
                 usernameError = null,
-                error = null,
+                error = null
             )
         }
     }
 
     fun onSubmit() {
+        _state.update { it.copy(sessionEndReason = null) }
         if (_state.value.isLoginMode) {
             login()
         } else {
@@ -92,7 +101,7 @@ class LoginViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            error = err.toUserMessage(),
+                            error = err.toUserMessage()
                         )
                     }
                 }
@@ -114,7 +123,7 @@ class LoginViewModel @Inject constructor(
                 it.copy(
                     emailError = emailError,
                     passwordError = passwordError,
-                    usernameError = usernameError,
+                    usernameError = usernameError
                 )
             }
             return
@@ -131,7 +140,7 @@ class LoginViewModel @Inject constructor(
                             // Auto-redirect to login mode after signup
                             isLoginMode = true,
                             password = "",
-                            username = "",
+                            username = ""
                         )
                     }
                     _events.emit(LoginEvent.NavigateToLogin)
@@ -142,34 +151,33 @@ class LoginViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            error = err.toUserMessage(),
+                            error = err.toUserMessage()
                         )
                     }
                 }
         }
     }
 
-    private fun validateEmail(email: String): String? {
-        return when {
-            email.isBlank() -> "Please enter your email"
-            !email.isValidEmail() -> "Please enter a valid email address"
-            else -> null
-        }
+    private fun validateEmail(email: String): String? = when {
+        email.isBlank() -> "Please enter your email"
+        !email.isValidEmail() -> "Please enter a valid email address"
+        else -> null
     }
 
-    private fun validatePassword(password: String): String? {
-        return when {
-            password.isBlank() -> "Please enter your password"
-            password.length < 8 -> "Password must be at least 8 characters"
-            else -> null
-        }
+    private fun validatePassword(password: String): String? = when {
+        password.isBlank() -> "Please enter your password"
+        password.length < 8 -> "Password must be at least 8 characters"
+        else -> null
     }
 
-    private fun validateUsername(username: String): String? {
-        return when {
-            username.isBlank() -> "Please enter a username"
-            else -> null
-        }
+    private fun validateUsername(username: String): String? = when {
+        username.isBlank() -> "Please enter a username"
+        else -> null
+    }
+
+    companion object {
+        /** Navigation argument: the [SessionEndReason] name when the server ended the session. */
+        const val ARG_SESSION_END_REASON = "reason"
     }
 }
 

@@ -1,10 +1,12 @@
 package com.shoonya.echo.auth
 
+import androidx.lifecycle.SavedStateHandle
+import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.fakes.FakeAuthRepository
+import com.shoonya.echo.fakes.TestData
 import com.shoonya.echo.features.auth.domain.usecase.LoginUseCase
 import com.shoonya.echo.features.auth.domain.usecase.SignupUseCase
 import com.shoonya.echo.features.auth.presentation.LoginViewModel
-import com.shoonya.echo.fakes.TestData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -32,7 +34,7 @@ class LoginViewModelTest {
         Dispatchers.setMain(testDispatcher)
         val loginUseCase = LoginUseCase(fakeRepo)
         val signupUseCase = SignupUseCase(fakeRepo)
-        viewModel = LoginViewModel(loginUseCase, signupUseCase)
+        viewModel = LoginViewModel(loginUseCase, signupUseCase, SavedStateHandle())
     }
 
     @After
@@ -94,7 +96,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `given valid signup data, on submit, isSignupSuccess becomes true and mode flips to login`() = runTest {
+    fun `given valid signup data, on submit, signup succeeds and mode flips to login`() = runTest {
         fakeRepo.setSignupSuccess()
         viewModel.onToggleMode() // switch to signup mode
         viewModel.onEmailChange("new@echo.com")
@@ -128,4 +130,46 @@ class LoginViewModelTest {
         val state = viewModel.state.value
         assertEquals("Please enter a username", state.usernameError)
     }
+
+    @Test
+    fun `given no session end reason, state has none`() {
+        assertNull(viewModel.state.value.sessionEndReason)
+    }
+
+    @Test
+    fun `given the session ended because the account is banned, state carries the reason`() {
+        val vm = loginViewModelWith(reason = SessionEndReason.ACCOUNT_BANNED.name)
+        assertEquals(SessionEndReason.ACCOUNT_BANNED, vm.state.value.sessionEndReason)
+    }
+
+    @Test
+    fun `given the session ended because the account is inactive, state carries the reason`() {
+        val vm = loginViewModelWith(reason = SessionEndReason.ACCOUNT_INACTIVE.name)
+        assertEquals(SessionEndReason.ACCOUNT_INACTIVE, vm.state.value.sessionEndReason)
+    }
+
+    @Test
+    fun `given an unknown reason argument, state has none`() {
+        val vm = loginViewModelWith(reason = "SOMETHING_ELSE")
+        assertNull(vm.state.value.sessionEndReason)
+    }
+
+    @Test
+    fun `given a session end reason, on submit, the reason is cleared`() = runTest {
+        fakeRepo.setLoginError("Invalid credentials")
+        val vm = loginViewModelWith(reason = SessionEndReason.ACCOUNT_BANNED.name)
+        vm.onEmailChange("test@echo.com")
+        vm.onPasswordChange("password123")
+
+        vm.onSubmit()
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.sessionEndReason)
+    }
+
+    private fun loginViewModelWith(reason: String) = LoginViewModel(
+        LoginUseCase(fakeRepo),
+        SignupUseCase(fakeRepo),
+        SavedStateHandle(mapOf(LoginViewModel.ARG_SESSION_END_REASON to reason))
+    )
 }

@@ -19,4 +19,6 @@
     <string name="error_short_password">Password must be at least 8 characters</string>
     <string name="error_empty_username">Please enter a username</string>
     <string name="snackbar_account_created">Account created! Please log in.</string>
+    <string name="session_end_account_banned">Your account has been banned. You have been logged out.</string>
+    <string name="session_end_account_inactive">Your account is not active. You have been logged out.</string>
 </resources>
