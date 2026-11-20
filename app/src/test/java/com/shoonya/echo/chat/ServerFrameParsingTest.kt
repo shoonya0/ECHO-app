@@ -4,11 +4,13 @@ import com.shoonya.echo.core.data.remote.NetworkModule
 import com.shoonya.echo.fakes.FakeWebSocketRepository
 import com.shoonya.echo.features.chat.domain.model.DomainEvent
 import com.shoonya.echo.features.chat.domain.model.ServerFrame
+import com.shoonya.echo.features.chat.domain.model.isWelcomeFrame
 import com.shoonya.echo.features.chat.domain.model.toDomainEvent
 import com.shoonya.echo.features.chat.domain.usecase.SendMessageUseCase
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.SerializationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -86,5 +88,32 @@ class ServerFrameParsingTest {
                 """.trimIndent()
             )
         }
+    }
+
+    // #30: the welcome shares the `response` type with replies but has no `success`.
+    @Test
+    fun `the welcome frame is recognised`() {
+        val welcome = json.parseToJsonElement(
+            """
+            {"type":"response","userId":"u1",
+             "data":{"clientId":"cl1","instanceId":"s1","status":"connected"},
+             "timestamp":"2026-11-20T10:00:00Z"}
+            """.trimIndent()
+        )
+
+        assertTrue(welcome.isWelcomeFrame())
+    }
+
+    @Test
+    fun `a request reply is not a welcome frame`() {
+        val reply = json.parseToJsonElement(
+            """{"type":"response","requestId":"r1","data":{"success":true,"messageId":"m8"}}"""
+        )
+        val typing = json.parseToJsonElement(
+            """{"type":"typing","chatId":"c1","userId":"u2","data":{"status":"connected"}}"""
+        )
+
+        assertFalse(reply.isWelcomeFrame())
+        assertFalse(typing.isWelcomeFrame())
     }
 }
