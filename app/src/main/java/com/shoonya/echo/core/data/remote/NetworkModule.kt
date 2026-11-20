@@ -41,11 +41,7 @@ object NetworkModule {
         .addInterceptor(AuthInterceptor(tokenStore, sessionManager))
         .apply {
             if (BuildConfig.ENABLE_LOGGING) {
-                addInterceptor(
-                    HttpLoggingInterceptor().apply {
-                        level = HttpLoggingInterceptor.Level.BODY
-                    }
-                )
+                addInterceptor(createLoggingInterceptor())
             }
         }
         .build()
@@ -67,4 +63,15 @@ object NetworkModule {
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
+}
+
+/**
+ * Debug HTTP logger. Logs bodies but never the bearer token: the Authorization
+ * header is redacted so the JWT doesn't end up in logcat.
+ */
+internal fun createLoggingInterceptor(
+    logger: HttpLoggingInterceptor.Logger = HttpLoggingInterceptor.Logger.DEFAULT
+): HttpLoggingInterceptor = HttpLoggingInterceptor(logger).apply {
+    level = HttpLoggingInterceptor.Level.BODY
+    redactHeader("Authorization")
 }
