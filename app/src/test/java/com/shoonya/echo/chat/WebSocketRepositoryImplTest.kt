@@ -1,6 +1,7 @@
 package com.shoonya.echo.chat
 
 import com.shoonya.echo.core.data.remote.NetworkModule
+import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.fakes.FakeWebSocketFactory
 import com.shoonya.echo.features.chat.data.remote.EchoWebSocketClient
 import com.shoonya.echo.features.chat.data.remote.ReconnectManager
@@ -8,6 +9,7 @@ import com.shoonya.echo.features.chat.data.repository.WebSocketRepositoryImpl
 import com.shoonya.echo.features.chat.domain.model.DomainEvent
 import com.shoonya.echo.features.chat.domain.repository.WsConnectionStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -29,12 +31,14 @@ class WebSocketRepositoryImplTest {
     private val client = EchoWebSocketClient(factory, { "tok" }, "ws://test/ws")
     private val reconnectManager = ReconnectManager(client)
     private var sessionsEnded = 0
+    private val sessionEnded = MutableSharedFlow<SessionEndReason>(extraBufferCapacity = 1)
 
     private fun TestScope.repository() = WebSocketRepositoryImpl(
         client,
         reconnectManager,
         NetworkModule.provideJson(),
         { sessionsEnded++ },
+        sessionEnded,
         backgroundScope
     ).also { runCurrent() } // start collecting client events
 
@@ -152,6 +156,25 @@ class WebSocketRepositoryImplTest {
 
         assertEquals(1, factory.sockets.size)
         assertEquals(1, sessionsEnded)
+        assertEquals(WsConnectionStatus.DISCONNECTED, repo.status())
+    }
+
+    // #27: a REST 401/403 ends the session in SessionManager; the open socket must close too.
+    @Test
+    fun `a session ended elsewhere closes the socket and does not reconnect`() = runTest {
+        val repo = repository()
+        repo.connect()
+        factory.last.serverOpens()
+        runCurrent()
+
+        sessionEnded.emit(SessionEndReason.ACCOUNT_INACTIVE)
+        runCurrent()
+        factory.last.serverAcksClose()
+        waitOutReconnectDelay()
+
+        assertEquals(1000, factory.last.closeCode)
+        assertEquals(1, factory.sockets.size)
+        assertEquals(false, repo.isConnected())
         assertEquals(WsConnectionStatus.DISCONNECTED, repo.status())
     }
 
