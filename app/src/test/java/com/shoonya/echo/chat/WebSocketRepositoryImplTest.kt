@@ -304,4 +304,34 @@ class WebSocketRepositoryImplTest {
 
         assertEquals(6, factory.sockets.size) // the first socket + 5 retries
     }
+
+    // #25: the reconnect manager reports giving up on its own flow.
+    @Test
+    fun `status becomes failed once the reconnect retries run out`() = runTest {
+        val repo = repository()
+        repo.connect()
+
+        repeat(6) {
+            factory.last.fails()
+            waitOutReconnectDelay()
+        }
+
+        assertEquals(WsConnectionStatus.FAILED, repo.status())
+    }
+
+    @Test
+    fun `connect after the retries ran out connects again`() = runTest {
+        val repo = repository()
+        repo.connect()
+        repeat(6) {
+            factory.last.fails()
+            waitOutReconnectDelay()
+        }
+
+        repo.connect()
+        factory.last.serverOpens()
+        runCurrent()
+
+        assertEquals(WsConnectionStatus.CONNECTED, repo.status())
+    }
 }
