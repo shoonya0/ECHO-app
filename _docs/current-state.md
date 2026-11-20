@@ -12,9 +12,9 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** fix [#10](https://github.com/shoonya0/ECHO-app/issues/10) on `fix/10-mark-read` (`cb4a77d` format, `4794e10` fix, `a6d7bb0` review fixes: one `mark_read` in flight until this user's `delivery` confirms it, retry on `RATE_LIMITED`/drop/timeout, throttle); verify passed, 143/143 unit tests; not pushed, no device check yet
-- **Next step:** user reviews and merges [PR #14](https://github.com/shoonya0/ECHO-app/pull/14); then [#11](https://github.com/shoonya0/ECHO-app/issues/11), [#13](https://github.com/shoonya0/ECHO-app/issues/13), telling the backend it can stop writing `readBy` (#42), or the group invite screen (backend #5 step 2)
-- **Updated:** 2026-11-20 at `a6d7bb0`
+- **Feature:** none · #10 (`mark_read`, PR #14) is merged; open app bugs [#11](https://github.com/shoonya0/ECHO-app/issues/11) (messages lost during history load) and [#13](https://github.com/shoonya0/ECHO-app/issues/13) (chat screen's connection status never updates)
+- **Next step:** #13 (small, one ViewModel) or #11; then tell the backend it can stop writing `readBy` (#42), or the group invite screen (backend #5 step 2). #10 is still unchecked on a device (needs the backend and two accounts)
+- **Updated:** 2026-11-20 at `ac625ec`
 
 ## What a user can do today
 
@@ -92,7 +92,7 @@ candidate GitHub issue; filed ones link to it.
    - Read state (backend #42): handled in PR #9 ("read by" from `readSeqs` and
      `delivery.readUpToSeq`); the backend can stop writing `readBy`.
    - The app never sent `mark_read` ([#10](https://github.com/shoonya0/ECHO-app/issues/10)):
-     fixed on `fix/10-mark-read` (not merged yet).
+     fixed in PR #14 (one request in flight until this user's `delivery` confirms it).
    - Messages that arrive while history loads disappear
      ([#11](https://github.com/shoonya0/ECHO-app/issues/11)).
    - Missed messages (backend #43): messages keep their `seq` (used for read state), but the
