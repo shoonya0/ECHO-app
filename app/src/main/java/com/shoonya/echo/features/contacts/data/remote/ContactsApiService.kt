@@ -10,28 +10,42 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
+/**
+ * The five contact lists come in pages (server #39): `page` counts from 1, `limit` is 1 to
+ * 100, and `pagination.total_pages` says how many pages there are. The repository reads
+ * every page.
+ */
+const val CONTACTS_PAGE_SIZE = 100
+
 interface ContactsApiService {
     @GET("users/contacts/")
-    suspend fun getContacts(@Query("limit") limit: Int = 50): ApiResponse<PaginatedData<ContactDto>>
+    suspend fun getContacts(
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = CONTACTS_PAGE_SIZE
+    ): ApiResponse<PaginatedData<ContactDto>>
 
     @GET("users/contacts/requests")
     suspend fun getContactRequests(
-        @Query("limit") limit: Int = 50
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = CONTACTS_PAGE_SIZE
     ): ApiResponse<PaginatedData<ContactDto>>
 
     @GET("users/contacts/sent-requests")
     suspend fun getSentContactRequests(
-        @Query("limit") limit: Int = 50
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = CONTACTS_PAGE_SIZE
     ): ApiResponse<PaginatedData<ContactDto>>
 
     @GET("users/contacts/blocked")
     suspend fun getBlockedUsers(
-        @Query("limit") limit: Int = 50
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = CONTACTS_PAGE_SIZE
     ): ApiResponse<PaginatedData<ContactDto>>
 
     @GET("users/contacts/favorites")
     suspend fun getFavorites(
-        @Query("limit") limit: Int = 50
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = CONTACTS_PAGE_SIZE
     ): ApiResponse<PaginatedData<ContactDto>>
 
     @POST("users/contacts/{userId}")

@@ -1,8 +1,11 @@
 package com.shoonya.echo.features.contacts.data.repository
 
+import com.shoonya.echo.core.data.remote.ApiResponse
+import com.shoonya.echo.core.data.remote.PaginatedData
 import com.shoonya.echo.core.data.remote.toResult
 import com.shoonya.echo.core.data.remote.toUnitResult
 import com.shoonya.echo.core.domain.model.User
+import com.shoonya.echo.features.contacts.data.model.ContactDto
 import com.shoonya.echo.features.contacts.data.model.UserProfileDto
 import com.shoonya.echo.features.contacts.data.model.UserSuggestionDto
 import com.shoonya.echo.features.contacts.data.model.toContact
@@ -25,51 +28,57 @@ class ContactsRepositoryImpl @Inject constructor(
     private val usersApi: UsersApiService
 ) : ContactsRepository {
 
+    /**
+     * Reads every page of a contact list (server #39 pages them), so users with more
+     * entries than one page see all of them. Most lists fit one page, so one request.
+     * Stops at `total_pages`, at an empty page, or at [MAX_PAGES] as a guard against a
+     * reply that never ends. Entries that moved between pages while reading are kept once.
+     */
+    private suspend fun fetchAllPages(
+        fetchPage: suspend (page: Int) -> ApiResponse<PaginatedData<ContactDto>>
+    ): List<ContactDto> {
+        val items = mutableListOf<ContactDto>()
+        var page = 1
+        while (true) {
+            val data = fetchPage(page).toResult().getOrThrow()
+            items += data.items
+            val lastPage = minOf(data.pagination.total_pages, MAX_PAGES)
+            if (data.items.isEmpty() || page >= lastPage) break
+            page++
+        }
+        return items.distinctBy { it.id }
+    }
+
     override suspend fun getContacts(): Result<List<Contact>> = runCatching {
-        contactsApi.getContacts()
-            .toResult()
-            .getOrThrow()
-            .items
+        fetchAllPages { page -> contactsApi.getContacts(page = page) }
             .map { it.toContact() }
     }.onFailure { err ->
         Timber.tag("ContactsRepo").e(err, "getContacts failed")
     }
 
     override suspend fun getFavorites(): Result<List<Contact>> = runCatching {
-        contactsApi.getFavorites()
-            .toResult()
-            .getOrThrow()
-            .items
+        fetchAllPages { page -> contactsApi.getFavorites(page = page) }
             .map { it.toContact() }
     }.onFailure { err ->
         Timber.tag("ContactsRepo").e(err, "getFavorites failed")
     }
 
     override suspend fun getBlockedUsers(): Result<List<Contact>> = runCatching {
-        contactsApi.getBlockedUsers()
-            .toResult()
-            .getOrThrow()
-            .items
+        fetchAllPages { page -> contactsApi.getBlockedUsers(page = page) }
             .map { it.toContact() }
     }.onFailure { err ->
         Timber.tag("ContactsRepo").e(err, "getBlockedUsers failed")
     }
 
     override suspend fun getIncomingRequests(): Result<List<ContactRequest>> = runCatching {
-        contactsApi.getContactRequests()
-            .toResult()
-            .getOrThrow()
-            .items
+        fetchAllPages { page -> contactsApi.getContactRequests(page = page) }
             .map { it.toIncomingRequest() }
     }.onFailure { err ->
         Timber.tag("ContactsRepo").e(err, "getIncomingRequests failed")
     }
 
     override suspend fun getOutgoingRequests(): Result<List<ContactRequest>> = runCatching {
-        contactsApi.getSentContactRequests()
-            .toResult()
-            .getOrThrow()
-            .items
+        fetchAllPages { page -> contactsApi.getSentContactRequests(page = page) }
             .map { it.toOutgoingRequest() }
     }.onFailure { err ->
         Timber.tag("ContactsRepo").e(err, "getOutgoingRequests failed")
@@ -179,4 +188,9 @@ class ContactsRepositoryImpl @Inject constructor(
         }.onFailure { err ->
             Timber.tag("ContactsRepo").e(err, "getUserSuggestions failed")
         }
+
+    private companion object {
+        /** 100 pages of 100: far above any real contact list. */
+        const val MAX_PAGES = 100
+    }
 }
