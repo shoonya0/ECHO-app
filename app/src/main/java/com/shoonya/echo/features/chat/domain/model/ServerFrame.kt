@@ -2,6 +2,10 @@ package com.shoonya.echo.features.chat.domain.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 @Serializable
 sealed interface ServerFrame {
@@ -104,6 +108,20 @@ sealed interface ServerFrame {
         override val timestamp: String? = null,
         override val requestId: String? = null
     ) : ServerFrame
+}
+
+/**
+ * True for the server's welcome, the first frame on every socket (server #168):
+ * `{"type":"response","userId":..,"data":{"clientId":..,"instanceId":..,"status":"connected"}}`.
+ * It shares the `response` type with request replies but has no `success`, so
+ * [ResponseData] can't decode it; check this before decoding a [ServerFrame] (#30).
+ */
+fun JsonElement.isWelcomeFrame(): Boolean {
+    val frame = this as? JsonObject ?: return false
+    val data = frame["data"] as? JsonObject ?: return false
+    return (frame["type"] as? JsonPrimitive)?.contentOrNull == "response" &&
+        (data["status"] as? JsonPrimitive)?.contentOrNull == "connected" &&
+        "success" !in data
 }
 
 // Sub-models matching the backend protocol from _docs/05_WEBSOCKET_CLIENT.md
