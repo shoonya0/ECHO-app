@@ -10,6 +10,7 @@ import com.shoonya.echo.features.chat.domain.repository.WebSocketRepository
 import com.shoonya.echo.features.chat.domain.usecase.CreateDirectChatUseCase
 import com.shoonya.echo.features.chat.domain.usecase.GetChatListUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -19,14 +20,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
 @HiltViewModel
 class ChatListViewModel @Inject constructor(
     private val getChatListUseCase: GetChatListUseCase,
     private val createDirectChatUseCase: CreateDirectChatUseCase,
     private val wsRepository: WebSocketRepository,
-    userIdProvider: UserIdProvider,
+    userIdProvider: UserIdProvider
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -39,7 +39,8 @@ class ChatListViewModel @Inject constructor(
 
     // Cross-feature events forwarded up to HomeScreen (e.g., presence)
     private val _crossFeatureEvents = MutableSharedFlow<ChatListCrossFeatureEvent>()
-    val crossFeatureEvents: SharedFlow<ChatListCrossFeatureEvent> = _crossFeatureEvents.asSharedFlow()
+    val crossFeatureEvents: SharedFlow<ChatListCrossFeatureEvent> =
+        _crossFeatureEvents.asSharedFlow()
 
     private var cachedContactIds: List<String> = emptyList()
 
@@ -64,7 +65,7 @@ class ChatListViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isLoading = false,
-                            error = err.toUserMessage(),
+                            error = err.toUserMessage()
                         )
                     }
                 }
@@ -87,17 +88,14 @@ class ChatListViewModel @Inject constructor(
     private suspend fun collectWsEvents() {
         wsRepository.events.collect { event ->
             when (event) {
-                is DomainEvent.NewMessage -> {
-                    // Refresh chat list to update last-message preview
-                    if (cachedContactIds.isNotEmpty()) {
-                        loadChats(cachedContactIds)
-                    }
-                }
+                is DomainEvent.NewMessage -> onNewMessage(event)
+
                 is DomainEvent.PresenceUpdate -> {
                     _crossFeatureEvents.emit(
                         ChatListCrossFeatureEvent.PresenceUpdate(event.userId, event.status)
                     )
                 }
+
                 is DomainEvent.UserJoined,
                 is DomainEvent.UserLeft -> {
                     // Refresh chat list so new/removed chats appear
@@ -105,8 +103,29 @@ class ChatListViewModel @Inject constructor(
                         loadChats(cachedContactIds)
                     }
                 }
+
                 else -> { /* no-op for chat list */ }
             }
+        }
+    }
+
+    /**
+     * Shows a live message as its chat's preview and moves the chat up, from the event alone: a
+     * reload costs a `POST chats/direct` and a `GET messages` per contact (#28). A chat that
+     * isn't listed is left out; the next load (resume, pull to refresh) picks it up.
+     */
+    private fun onNewMessage(event: DomainEvent.NewMessage) {
+        _state.update { state ->
+            val chat = state.chats.firstOrNull { it.id == event.chatId } ?: return@update state
+            val current = chat.lastMessage
+            if (current != null && current.createdAt > event.message.createdAt) return@update state
+            val updated = chat.copy(lastMessage = event.message)
+            state.copy(
+                chats = state.chats
+                    .map { if (it.id == updated.id) updated else it }
+                    // Same order as ChatRepository.getChatList: newest first.
+                    .sortedByDescending { it.lastMessage?.createdAt ?: it.createdAt }
+            )
         }
     }
 }
@@ -117,5 +136,6 @@ sealed interface ChatListEvent {
 }
 
 sealed interface ChatListCrossFeatureEvent {
-    data class PresenceUpdate(val userId: String, val status: PresenceStatus) : ChatListCrossFeatureEvent
+    data class PresenceUpdate(val userId: String, val status: PresenceStatus) :
+        ChatListCrossFeatureEvent
 }
