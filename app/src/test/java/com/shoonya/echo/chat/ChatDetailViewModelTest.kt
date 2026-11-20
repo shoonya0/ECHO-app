@@ -352,6 +352,26 @@ class ChatDetailViewModelTest {
     }
 
     @Test
+    fun `own typing echoed by the server does not show the indicator`() = runTest {
+        // #31: the server sends `typing` to the whole chat, the sender too.
+        fakeChatRepo.setGetChatMessagesSuccess(emptyList())
+        fakeChatRepo.setGetChatSuccess(TestData.directChat)
+        createViewModel()
+        advanceUntilIdle()
+
+        fakeWsRepo.emitDomainEvent(
+            DomainEvent.TypingUpdate(
+                TestData.CHAT_ID_DIRECT,
+                TestData.CURRENT_USER_ID,
+                isTyping = true
+            )
+        )
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.typingUserIds.isEmpty())
+    }
+
+    @Test
     fun `ws ReadReceipt marks every message up to readUpToSeq as read by that member`() = runTest {
         // Own messages 1..3, none read yet (#42: read state comes from seqs, not readBy).
         val mine = (1L..3L).map { seq ->
