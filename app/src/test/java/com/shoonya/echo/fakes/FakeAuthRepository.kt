@@ -19,6 +19,10 @@ class FakeAuthRepository : AuthRepository {
         loginResult = Result.failure(Exception(message))
     }
 
+    fun setLoginFailure(error: Throwable) {
+        loginResult = Result.failure(error)
+    }
+
     fun setSignupSuccess() {
         signupResult = Result.success(Unit)
     }
@@ -29,7 +33,8 @@ class FakeAuthRepository : AuthRepository {
 
     override suspend fun login(email: String, password: String): Result<User> = loginResult
 
-    override suspend fun signup(email: String, username: String, password: String): Result<Unit> = signupResult
+    override suspend fun signup(email: String, username: String, password: String): Result<Unit> =
+        signupResult
 
     override suspend fun logout() {
         token = null

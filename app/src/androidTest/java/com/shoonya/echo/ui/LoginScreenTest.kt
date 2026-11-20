@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.shoonya.echo.R
 import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.core.theme.EchoTheme
+import com.shoonya.echo.features.auth.domain.model.AccountStatus
 import com.shoonya.echo.features.auth.presentation.LoginContent
 import org.junit.Rule
 import org.junit.Test
@@ -114,7 +115,28 @@ class LoginScreenTest {
             .assertIsDisplayed()
     }
 
-    private fun setLoginContent(reason: SessionEndReason?) {
+    @Test
+    fun givenLoginRefusedForBannedAccount_bannedLoginMessageIsDisplayed() {
+        setLoginContent(reason = null, accountStatus = AccountStatus.BANNED)
+
+        composeTestRule
+            .onNodeWithText(string(R.string.login_account_banned))
+            .assertIsDisplayed()
+        composeTestRule
+            .onAllNodesWithText("You don't have permission to do that.")
+            .assertCountEquals(0)
+    }
+
+    @Test
+    fun givenLoginRefusedForInactiveAccount_inactiveLoginMessageIsDisplayed() {
+        setLoginContent(reason = null, accountStatus = AccountStatus.INACTIVE)
+
+        composeTestRule
+            .onNodeWithText(string(R.string.login_account_inactive))
+            .assertIsDisplayed()
+    }
+
+    private fun setLoginContent(reason: SessionEndReason?, accountStatus: AccountStatus? = null) {
         composeTestRule.setContent {
             EchoTheme {
                 LoginContent(
@@ -135,7 +157,8 @@ class LoginScreenTest {
                     onSubmit = {},
                     onToggleMode = {},
                     onClearError = {},
-                    sessionEndReason = reason
+                    sessionEndReason = reason,
+                    accountStatus = accountStatus
                 )
             }
         }

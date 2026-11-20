@@ -1,6 +1,7 @@
 package com.shoonya.echo.features.auth.presentation
 
 import com.shoonya.echo.core.domain.model.SessionEndReason
+import com.shoonya.echo.features.auth.domain.model.AccountStatus
 
 data class LoginUiState(
     val email: String = "",
@@ -15,5 +16,7 @@ data class LoginUiState(
     val isAuthenticated: Boolean = false,
     val isSignupSuccess: Boolean = false,
     /** Why the last session ended, shown until the next submit; null after a normal start. */
-    val sessionEndReason: SessionEndReason? = null
+    val sessionEndReason: SessionEndReason? = null,
+    /** Set when login was refused because the account is banned or inactive (#21). */
+    val accountStatus: AccountStatus? = null
 )
