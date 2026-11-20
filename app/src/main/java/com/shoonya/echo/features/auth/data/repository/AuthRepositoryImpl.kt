@@ -9,10 +9,12 @@ import com.shoonya.echo.features.auth.data.model.LoginUserDto
 import com.shoonya.echo.features.auth.data.model.SignupRequest
 import com.shoonya.echo.features.auth.data.model.toDomain
 import com.shoonya.echo.features.auth.data.remote.AuthApiService
+import com.shoonya.echo.features.auth.data.remote.toLoginFailure
 import com.shoonya.echo.features.auth.domain.repository.AuthRepository
 import com.shoonya.echo.features.chat.data.local.ChatCache
 import javax.inject.Inject
 import javax.inject.Singleton
+import retrofit2.HttpException
 import timber.log.Timber
 
 @Singleton
@@ -23,9 +25,13 @@ class AuthRepositoryImpl @Inject constructor(
 ) : AuthRepository {
 
     override suspend fun login(email: String, password: String): Result<User> = runCatching {
-        api.login(LoginRequest(email, password))
-            .toResult()
-            .getOrThrow()
+        try {
+            api.login(LoginRequest(email, password))
+                .toResult()
+                .getOrThrow()
+        } catch (e: HttpException) {
+            throw e.toLoginFailure()
+        }
     }.mapCatching { response ->
         require(response.token.isNotBlank()) { "Server returned an empty token" }
         tokenStore.saveAccessToken(response.token)

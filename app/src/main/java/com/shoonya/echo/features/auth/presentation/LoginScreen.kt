@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shoonya.echo.R
 import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.core.theme.EchoTheme
+import com.shoonya.echo.features.auth.domain.model.AccountStatus
 
 @Composable
 fun LoginScreen(viewModel: LoginViewModel = hiltViewModel(), onNavigateToHome: () -> Unit) {
@@ -77,8 +78,16 @@ fun LoginScreen(viewModel: LoginViewModel = hiltViewModel(), onNavigateToHome: (
         onSubmit = viewModel::onSubmit,
         onToggleMode = viewModel::onToggleMode,
         onClearError = viewModel::clearError,
-        sessionEndReason = state.sessionEndReason
+        sessionEndReason = state.sessionEndReason,
+        accountStatus = state.accountStatus
     )
+}
+
+/** Why login was refused for this account, as text for the user (#21). */
+@StringRes
+internal fun AccountStatus.messageRes(): Int = when (this) {
+    AccountStatus.BANNED -> R.string.login_account_banned
+    AccountStatus.INACTIVE -> R.string.login_account_inactive
 }
 
 /** Why the server ended the session, as text for the user; null when there is nothing to say. */
@@ -108,7 +117,8 @@ internal fun LoginContent(
     onSubmit: () -> Unit,
     onToggleMode: () -> Unit,
     onClearError: () -> Unit,
-    sessionEndReason: SessionEndReason? = null
+    sessionEndReason: SessionEndReason? = null,
+    accountStatus: AccountStatus? = null
 ) {
     Box(
         modifier = Modifier
@@ -200,6 +210,14 @@ internal fun LoginContent(
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            accountStatus?.let { status ->
+                Text(
+                    text = stringResource(status.messageRes()),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
 
             if (error != null) {
                 Text(
