@@ -28,11 +28,13 @@ class WebSocketRepositoryImplTest {
     private val factory = FakeWebSocketFactory()
     private val client = EchoWebSocketClient(factory, { "tok" }, "ws://test/ws")
     private val reconnectManager = ReconnectManager(client)
+    private var sessionsEnded = 0
 
     private fun TestScope.repository() = WebSocketRepositoryImpl(
         client,
         reconnectManager,
         NetworkModule.provideJson(),
+        { sessionsEnded++ },
         backgroundScope
     ).also { runCurrent() } // start collecting client events
 
@@ -123,6 +125,113 @@ class WebSocketRepositoryImplTest {
 
         factory.last.serverCloses(1011, "try again")
         waitOutReconnectDelay()
+
+        assertEquals(2, factory.sockets.size)
+    }
+
+    // Server #76: 4401 (TOKEN_REVOKED, TOKEN_EXPIRED, ACCOUNT_NOT_FOUND) and
+    // 4403 (ACCOUNT_BANNED, ACCOUNT_INACTIVE) mean the session is over.
+    @Test
+    fun `close 4401 ends the session and does not reconnect`() = runTest {
+        assertSessionEndsOn(4401, "TOKEN_REVOKED")
+    }
+
+    @Test
+    fun `close 4403 ends the session and does not reconnect`() = runTest {
+        assertSessionEndsOn(4403, "ACCOUNT_BANNED")
+    }
+
+    private suspend fun TestScope.assertSessionEndsOn(code: Int, reason: String) {
+        val repo = repository()
+        repo.connect()
+        factory.last.serverOpens()
+
+        factory.last.serverCloses(code, reason)
+        runCurrent()
+        waitOutReconnectDelay()
+
+        assertEquals(1, factory.sockets.size)
+        assertEquals(1, sessionsEnded)
+        assertEquals(WsConnectionStatus.DISCONNECTED, repo.status())
+    }
+
+    @Test
+    fun `an abnormal close does not end the session`() = runTest {
+        val repo = repository()
+        repo.connect()
+        factory.last.serverOpens()
+
+        factory.last.serverCloses(1001, "going away")
+        waitOutReconnectDelay()
+
+        assertEquals(0, sessionsEnded)
+    }
+
+    @Test
+    fun `disconnect (logout) does not reconnect`() = runTest {
+        val repo = repository()
+        repo.connect()
+        factory.last.serverOpens()
+        runCurrent()
+
+        repo.disconnect()
+        factory.last.serverAcksClose()
+        waitOutReconnectDelay()
+
+        assertEquals(1, factory.sockets.size)
+        assertEquals(1000, factory.last.closeCode)
+        assertEquals(WsConnectionStatus.DISCONNECTED, repo.status())
+        assertEquals(0, sessionsEnded)
+    }
+
+    @Test
+    fun `disconnect cancels a reconnect that is already scheduled`() = runTest {
+        val repo = repository()
+        repo.connect()
+        factory.last.fails()
+        runCurrent() // reconnect scheduled
+
+        repo.disconnect()
+        waitOutReconnectDelay()
+
+        assertEquals(1, factory.sockets.size)
+    }
+
+    @Test
+    fun `a failure still queued when disconnect runs does not reconnect`() = runTest {
+        val repo = repository()
+        repo.connect()
+        factory.last.fails() // Error queued; the collector has not run yet
+
+        repo.disconnect()
+        waitOutReconnectDelay()
+
+        assertEquals(1, factory.sockets.size)
+    }
+
+    @Test
+    fun `connect after a session-ending close reconnects normally again`() = runTest {
+        val repo = repository()
+        repo.connect()
+        factory.last.serverOpens()
+        factory.last.serverCloses(4401, "TOKEN_EXPIRED")
+        runCurrent()
+
+        repo.connect() // logged in again
+        factory.last.fails()
+        waitOutReconnectDelay()
+
+        assertEquals(3, factory.sockets.size)
+    }
+
+    @Test
+    fun `connect after disconnect opens a new socket`() = runTest {
+        val repo = repository()
+        repo.connect()
+        factory.last.serverOpens()
+        repo.disconnect()
+
+        repo.connect()
 
         assertEquals(2, factory.sockets.size)
     }
