@@ -9,5 +9,8 @@ enum class SessionEndReason {
     ACCOUNT_BANNED,
 
     /** `403 ACCOUNT_INACTIVE`: the account was deactivated. */
-    ACCOUNT_INACTIVE
+    ACCOUNT_INACTIVE,
+
+    /** `401 ACCOUNT_NOT_FOUND` or WS close `4401 ACCOUNT_NOT_FOUND`: the account was deleted. */
+    ACCOUNT_NOT_FOUND
 }

@@ -1,6 +1,7 @@
 package com.shoonya.echo.chat
 
 import com.shoonya.echo.core.data.remote.NetworkModule
+import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.fakes.FakeWebSocketFactory
 import com.shoonya.echo.features.chat.data.remote.EchoWebSocketClient
 import com.shoonya.echo.features.chat.data.remote.ReconnectManager
@@ -8,6 +9,7 @@ import com.shoonya.echo.features.chat.data.repository.WebSocketRepositoryImpl
 import com.shoonya.echo.features.chat.domain.model.DomainEvent
 import com.shoonya.echo.features.chat.domain.repository.WsConnectionStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -31,13 +33,16 @@ class WebSocketRepositoryImplTest {
     private var token: String? = "tok"
     private val client = EchoWebSocketClient(factory, { token }, "ws://test/ws")
     private val reconnectManager = ReconnectManager(client)
-    private var sessionsEnded = 0
+    private val endReasons = mutableListOf<SessionEndReason>()
+    private val sessionsEnded get() = endReasons.size
+    private val sessionEnded = MutableSharedFlow<SessionEndReason>(extraBufferCapacity = 1)
 
     private fun TestScope.repository() = WebSocketRepositoryImpl(
         client,
         reconnectManager,
         NetworkModule.provideJson(),
-        { sessionsEnded++ },
+        { endReasons += it },
+        sessionEnded,
         backgroundScope
     ).also { runCurrent() } // start collecting client events
 
@@ -181,7 +186,38 @@ class WebSocketRepositoryImplTest {
         assertSessionEndsOn(4403, "ACCOUNT_BANNED")
     }
 
-    private suspend fun TestScope.assertSessionEndsOn(code: Int, reason: String) {
+    // Follow-up to #20/#23: the close reason says why, so Login can tell the user.
+    @Test
+    fun `close 4403 ACCOUNT_BANNED ends the session as banned`() = runTest {
+        assertSessionEndsOn(4403, "ACCOUNT_BANNED", SessionEndReason.ACCOUNT_BANNED)
+    }
+
+    @Test
+    fun `close 4403 ACCOUNT_INACTIVE ends the session as inactive`() = runTest {
+        assertSessionEndsOn(4403, "ACCOUNT_INACTIVE", SessionEndReason.ACCOUNT_INACTIVE)
+    }
+
+    @Test
+    fun `close 4401 TOKEN_EXPIRED ends the session as expired`() = runTest {
+        assertSessionEndsOn(4401, "TOKEN_EXPIRED", SessionEndReason.EXPIRED)
+    }
+
+    // #22: the account was deleted; SessionManager clears its local data on this reason.
+    @Test
+    fun `close 4401 ACCOUNT_NOT_FOUND ends the session as account not found`() = runTest {
+        assertSessionEndsOn(4401, "ACCOUNT_NOT_FOUND", SessionEndReason.ACCOUNT_NOT_FOUND)
+    }
+
+    @Test
+    fun `close 4403 with an unknown reason ends the session as expired`() = runTest {
+        assertSessionEndsOn(4403, "SOMETHING_NEW", SessionEndReason.EXPIRED)
+    }
+
+    private suspend fun TestScope.assertSessionEndsOn(
+        code: Int,
+        reason: String,
+        expected: SessionEndReason? = null
+    ) {
         val repo = repository()
         repo.connect()
         factory.last.serverOpens()
@@ -192,6 +228,26 @@ class WebSocketRepositoryImplTest {
 
         assertEquals(1, factory.sockets.size)
         assertEquals(1, sessionsEnded)
+        expected?.let { assertEquals(listOf(it), endReasons) }
+        assertEquals(WsConnectionStatus.DISCONNECTED, repo.status())
+    }
+
+    // #27: a REST 401/403 ends the session in SessionManager; the open socket must close too.
+    @Test
+    fun `a session ended elsewhere closes the socket and does not reconnect`() = runTest {
+        val repo = repository()
+        repo.connect()
+        factory.last.serverOpens()
+        runCurrent()
+
+        sessionEnded.emit(SessionEndReason.ACCOUNT_INACTIVE)
+        runCurrent()
+        factory.last.serverAcksClose()
+        waitOutReconnectDelay()
+
+        assertEquals(1000, factory.last.closeCode)
+        assertEquals(1, factory.sockets.size)
+        assertEquals(false, repo.isConnected())
         assertEquals(WsConnectionStatus.DISCONNECTED, repo.status())
     }
 

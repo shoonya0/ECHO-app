@@ -1,5 +1,7 @@
 package com.shoonya.echo.features.chat.data.repository
 
+import com.shoonya.echo.core.data.remote.SessionManager
+import com.shoonya.echo.core.domain.model.SessionEndReason
 import com.shoonya.echo.features.chat.data.remote.EchoWebSocketClient
 import com.shoonya.echo.features.chat.data.remote.ReconnectManager
 import com.shoonya.echo.features.chat.data.remote.WebSocketEvent
@@ -18,6 +20,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -34,6 +37,8 @@ class WebSocketRepositoryImpl(
     private val reconnectManager: ReconnectManager,
     private val json: Json,
     private val sessionEnder: WsSessionEnder,
+    // Fires when the session ends anywhere, e.g. a REST 401/403 (#27).
+    private val sessionEnded: Flow<SessionEndReason>,
     // Test seam: unit tests pass a TestScope so reconnect delays run on virtual time.
     private val scope: CoroutineScope
 ) : WebSocketRepository {
@@ -43,12 +48,14 @@ class WebSocketRepositoryImpl(
         wsClient: EchoWebSocketClient,
         reconnectManager: ReconnectManager,
         json: Json,
-        sessionEnder: WsSessionEnder
+        sessionEnder: WsSessionEnder,
+        sessionManager: SessionManager
     ) : this(
         wsClient,
         reconnectManager,
         json,
         sessionEnder,
+        sessionManager.sessionExpired,
         CoroutineScope(SupervisorJob() + Dispatchers.IO)
     )
 
@@ -66,6 +73,14 @@ class WebSocketRepositoryImpl(
     override val connectionStatus: SharedFlow<WsConnectionStatus> = _connectionStatus.asStateFlow()
 
     init {
+        // The session can end outside the socket (REST 401/403 → SessionManager.expire): a
+        // logged-out user must not keep receiving live events, so close without reconnecting.
+        scope.launch {
+            sessionEnded.collect { reason ->
+                Timber.tag("WS").i("session ended (%s): closing the socket", reason)
+                disconnect()
+            }
+        }
         scope.launch {
             wsClient.events.collect { event ->
                 when (event) {
@@ -131,7 +146,20 @@ class WebSocketRepositoryImpl(
         stopped = true
         reconnectManager.stop()
         failPendingRequests()
-        sessionEnder.endSession()
+        sessionEnder.endSession(sessionEndReason(code, reason))
+    }
+
+    // The close reason is the REST code (server #76), so Login can say why, and a deleted
+    // account's local data is cleared (#22).
+    private fun sessionEndReason(code: Int, reason: String): SessionEndReason = when {
+        code == CLOSE_UNAUTHORIZED && reason == "ACCOUNT_NOT_FOUND" ->
+            SessionEndReason.ACCOUNT_NOT_FOUND
+
+        code == CLOSE_FORBIDDEN && reason == "ACCOUNT_BANNED" -> SessionEndReason.ACCOUNT_BANNED
+
+        code == CLOSE_FORBIDDEN && reason == "ACCOUNT_INACTIVE" -> SessionEndReason.ACCOUNT_INACTIVE
+
+        else -> SessionEndReason.EXPIRED
     }
 
     private fun scheduleReconnect() {
@@ -215,5 +243,10 @@ class WebSocketRepositoryImpl(
         } catch (e: Exception) {
             Timber.tag("WS").e(e, "failed to parse WebSocket frame: %s", raw.take(200))
         }
+    }
+
+    private companion object {
+        const val CLOSE_UNAUTHORIZED = 4401
+        const val CLOSE_FORBIDDEN = 4403
     }
 }
