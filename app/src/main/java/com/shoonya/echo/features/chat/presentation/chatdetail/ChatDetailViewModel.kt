@@ -481,7 +481,8 @@ class ChatDetailViewModel @Inject constructor(
                 }
 
                 is DomainEvent.TypingUpdate -> {
-                    if (event.chatId == resolvedChatId) {
+                    // The server echoes `typing` to the sender too (#31): skip our own.
+                    if (event.chatId == resolvedChatId && event.userId != currentUserId) {
                         if (event.isTyping) {
                             _state.update {
                                 it.copy(typingUserIds = it.typingUserIds + event.userId)
