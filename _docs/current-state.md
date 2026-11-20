@@ -12,9 +12,9 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** none · #7 (PR #8) and the app side of backend #42 (PR #9) are merged; open app bugs [#10](https://github.com/shoonya0/ECHO-app/issues/10) (`mark_read` never sent) and [#11](https://github.com/shoonya0/ECHO-app/issues/11) (messages lost during history load)
-- **Next step:** tell the backend it can stop writing `readBy` (#42); then the group invite screen (backend #5 step 2) or #10
-- **Updated:** 2026-11-20 at `f98db4c`
+- **Feature:** fix [#10](https://github.com/shoonya0/ECHO-app/issues/10) on `fix/10-mark-read` (`cb4a77d` format, `4794e10` fix): the chat screen sends one debounced `mark_read` while resumed; verify passed, 138/138 unit tests; not pushed, no device check yet
+- **Next step:** review (`/code-review`), push, open the PR; then [#11](https://github.com/shoonya0/ECHO-app/issues/11), telling the backend it can stop writing `readBy` (#42), or the group invite screen (backend #5 step 2)
+- **Updated:** 2026-11-20 at `4794e10`
 
 ## What a user can do today
 
@@ -91,8 +91,8 @@ candidate GitHub issue; filed ones link to it.
      ([#7](https://github.com/shoonya0/ECHO-app/issues/7), fixed in PR #8).
    - Read state (backend #42): handled in PR #9 ("read by" from `readSeqs` and
      `delivery.readUpToSeq`); the backend can stop writing `readBy`.
-   - The app never sends `mark_read` ([#10](https://github.com/shoonya0/ECHO-app/issues/10)):
-     the other side never sees this user's reads.
+   - The app never sent `mark_read` ([#10](https://github.com/shoonya0/ECHO-app/issues/10)):
+     fixed on `fix/10-mark-read` (not merged yet).
    - Messages that arrive while history loads disappear
      ([#11](https://github.com/shoonya0/ECHO-app/issues/11)).
    - Missed messages (backend #43): messages keep their `seq` (used for read state), but the
@@ -111,7 +111,10 @@ candidate GitHub issue; filed ones link to it.
 7. Minor, seen on the emulator (VERIFIED by screenshot, cause ASSUMED): in the dark theme the
    status-bar icons are dark on the dark background (`setup-smoke-login.png`); the app's
    theme and the edge-to-edge system-bar style probably disagree (`MainActivity.kt`).
-8. Minor: `ChatCache` uses unsynchronised collections from IO coroutines
+8. **Chat screen's connection status never updates** (VERIFIED in code, not filed yet):
+   `ChatDetailViewModel.connectAndJoin()` calls `collectWsEvents()`, which never returns, before
+   `collectConnectionStatus()`, so the state stays `CONNECTING` and the banner likely never clears.
+9. Minor: `ChatCache` uses unsynchronised collections from IO coroutines
    (`ChatCache.kt:9-10`); `ChatRepositoryImpl.sendMessage` is dead code with a stale
    "Phase 5" message (`:97`); `HomePlaceholder.kt` is unused; the WebSocket and data layers
    have no unit tests.
