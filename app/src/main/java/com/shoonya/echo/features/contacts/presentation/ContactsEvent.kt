@@ -2,6 +2,9 @@ package com.shoonya.echo.features.contacts.presentation
 
 sealed interface ContactsEvent {
     data object Refresh : ContactsEvent
+
+    /** The screen showing the contacts came back into view (lifecycle resume). */
+    data object ScreenResumed : ContactsEvent
     data class SearchQueryChanged(val query: String) : ContactsEvent
     data class ToggleFavorite(val contactId: String) : ContactsEvent
     data class BlockUser(val userId: String) : ContactsEvent
