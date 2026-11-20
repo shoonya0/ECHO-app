@@ -27,13 +27,21 @@ import kotlinx.serialization.json.Json
 import timber.log.Timber
 
 @Singleton
-class WebSocketRepositoryImpl @Inject constructor(
+class WebSocketRepositoryImpl(
     private val wsClient: EchoWebSocketClient,
     private val reconnectManager: ReconnectManager,
-    private val json: Json
+    private val json: Json,
+    // Test seam: unit tests pass a TestScope so reconnect delays run on virtual time.
+    private val scope: CoroutineScope
 ) : WebSocketRepository {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Inject
+    constructor(
+        wsClient: EchoWebSocketClient,
+        reconnectManager: ReconnectManager,
+        json: Json
+    ) : this(wsClient, reconnectManager, json, CoroutineScope(SupervisorJob() + Dispatchers.IO))
+
     private val pendingRequests = ConcurrentHashMap<String, CompletableDeferred<ServerFrame>>()
 
     private val _events = MutableSharedFlow<DomainEvent>(replay = 0, extraBufferCapacity = 64)

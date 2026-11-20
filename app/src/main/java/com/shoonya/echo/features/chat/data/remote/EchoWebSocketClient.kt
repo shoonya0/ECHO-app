@@ -23,11 +23,24 @@ sealed interface WebSocketEvent {
     data object ReconnectFailed : WebSocketEvent
 }
 
+/**
+ * Owns the app's WebSocket to the ECHO server.
+ *
+ * The primary constructor is the test seam: unit tests pass a fake [WebSocket.Factory]
+ * (OkHttpClient implements it) and a token lambda, so they need no Context or network.
+ */
 @Singleton
-class EchoWebSocketClient @Inject constructor(
-    @WsClient private val okHttpClient: OkHttpClient,
-    private val tokenStore: SecureTokenStore
+class EchoWebSocketClient(
+    private val webSocketFactory: WebSocket.Factory,
+    private val accessToken: () -> String?,
+    private val url: String = "${BuildConfig.WS_BASE_URL}/echo/v1/ws/chat"
 ) {
+    @Inject
+    constructor(
+        @WsClient okHttpClient: OkHttpClient,
+        tokenStore: SecureTokenStore
+    ) : this(okHttpClient, tokenStore::getAccessToken)
+
     private var webSocket: WebSocket? = null
 
     @Volatile
@@ -37,7 +50,7 @@ class EchoWebSocketClient @Inject constructor(
     val events: SharedFlow<WebSocketEvent> = _events.asSharedFlow()
 
     fun connect() {
-        val token = tokenStore.getAccessToken()
+        val token = accessToken()
         if (token == null) {
             Timber.tag("WS").w("No auth token — cannot connect")
             _events.tryEmit(WebSocketEvent.Error("No auth token"))
@@ -45,11 +58,11 @@ class EchoWebSocketClient @Inject constructor(
         }
 
         val request = Request.Builder()
-            .url("${BuildConfig.WS_BASE_URL}/echo/v1/ws/chat")
+            .url(url)
             .header("Authorization", "Bearer $token")
             .build()
 
-        webSocket = okHttpClient.newWebSocket(
+        webSocket = webSocketFactory.newWebSocket(
             request,
             object : WebSocketListener() {
                 override fun onOpen(ws: WebSocket, response: Response) {
