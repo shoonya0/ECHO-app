@@ -3,6 +3,7 @@ package com.shoonya.echo.features.chat.data.repository
 import com.shoonya.echo.features.chat.data.remote.EchoWebSocketClient
 import com.shoonya.echo.features.chat.data.remote.ReconnectManager
 import com.shoonya.echo.features.chat.data.remote.WebSocketEvent
+import com.shoonya.echo.features.chat.data.remote.WsSessionEnder
 import com.shoonya.echo.features.chat.domain.model.DomainEvent
 import com.shoonya.echo.features.chat.domain.model.ServerFrame
 import com.shoonya.echo.features.chat.domain.model.WebSocketCommand
@@ -27,13 +28,34 @@ import kotlinx.serialization.json.Json
 import timber.log.Timber
 
 @Singleton
-class WebSocketRepositoryImpl @Inject constructor(
+class WebSocketRepositoryImpl(
     private val wsClient: EchoWebSocketClient,
     private val reconnectManager: ReconnectManager,
-    private val json: Json
+    private val json: Json,
+    private val sessionEnder: WsSessionEnder,
+    // Test seam: unit tests pass a TestScope so reconnect delays run on virtual time.
+    private val scope: CoroutineScope
 ) : WebSocketRepository {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Inject
+    constructor(
+        wsClient: EchoWebSocketClient,
+        reconnectManager: ReconnectManager,
+        json: Json,
+        sessionEnder: WsSessionEnder
+    ) : this(
+        wsClient,
+        reconnectManager,
+        json,
+        sessionEnder,
+        CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    )
+
+    // True after disconnect() or a session-ending close, until the next connect(): an
+    // event still queued from the old socket must not schedule a reconnect.
+    @Volatile
+    private var stopped = false
+
     private val pendingRequests = ConcurrentHashMap<String, CompletableDeferred<ServerFrame>>()
 
     private val _events = MutableSharedFlow<DomainEvent>(replay = 0, extraBufferCapacity = 64)
@@ -55,13 +77,17 @@ class WebSocketRepositoryImpl @Inject constructor(
 
                     is WebSocketEvent.Disconnected -> {
                         _connectionStatus.value = WsConnectionStatus.DISCONNECTED
-                        reconnectManager.onDisconnected(scope)
+                        if (event.code in ReconnectManager.SESSION_ENDED_CODES) {
+                            endSession(event.code, event.reason)
+                        } else {
+                            scheduleReconnect()
+                        }
                     }
 
                     is WebSocketEvent.Error -> {
                         Timber.tag("WS").e("WebSocket error: %s", event.message)
                         _connectionStatus.value = WsConnectionStatus.DISCONNECTED
-                        reconnectManager.onDisconnected(scope)
+                        scheduleReconnect()
                     }
 
                     is WebSocketEvent.ReconnectFailed -> {
@@ -73,14 +99,41 @@ class WebSocketRepositoryImpl @Inject constructor(
     }
 
     override suspend fun connect() {
+        // Several screens call connect(); the client keeps the one socket (#1), and an
+        // open one must not be shown as connecting again.
+        if (wsClient.isConnected()) return
+        stopped = false
         _connectionStatus.value = WsConnectionStatus.CONNECTING
         wsClient.connect()
     }
 
     override suspend fun disconnect() {
+        stopped = true
+        reconnectManager.stop()
         wsClient.disconnect()
         _connectionStatus.value = WsConnectionStatus.DISCONNECTED
-        // Fail all pending requests
+        failPendingRequests()
+    }
+
+    // The server closed with 4401/4403: reconnecting would only get 401/403 at the
+    // upgrade, so log out instead (server #76, auth-and-connection.md).
+    private fun endSession(code: Int, reason: String) {
+        Timber.tag("WS").w("session ended by server: %d %s", code, reason)
+        stopped = true
+        reconnectManager.stop()
+        failPendingRequests()
+        sessionEnder.endSession()
+    }
+
+    private fun scheduleReconnect() {
+        if (stopped) {
+            Timber.tag("WS").d("no reconnect: stopped by disconnect or session end")
+            return
+        }
+        reconnectManager.onDisconnected(scope)
+    }
+
+    private fun failPendingRequests() {
         pendingRequests.values.forEach { deferred ->
             deferred.completeExceptionally(IllegalStateException("WebSocket disconnected"))
         }
