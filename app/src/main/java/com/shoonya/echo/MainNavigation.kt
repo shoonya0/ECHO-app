@@ -37,7 +37,7 @@ object Routes {
 fun EchoNavHost(
     navController: NavHostController = rememberNavController(),
     sessionManager: SessionManager? = null,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     LaunchedEffect(sessionManager) {
         sessionManager?.sessionExpired?.collect {
@@ -50,7 +50,7 @@ fun EchoNavHost(
     NavHost(
         navController = navController,
         startDestination = Routes.SPLASH,
-        modifier = modifier,
+        modifier = modifier
     ) {
         composable(Routes.SPLASH) {
             SplashScreen(
@@ -63,7 +63,7 @@ fun EchoNavHost(
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                     }
-                },
+                }
             )
         }
 
@@ -73,7 +73,7 @@ fun EchoNavHost(
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
-                },
+                }
             )
         }
 
@@ -84,33 +84,33 @@ fun EchoNavHost(
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.HOME) { inclusive = true }
                     }
-                },
+                }
             )
         }
 
         composable(
             route = Routes.CHAT,
             arguments = listOf(
-                navArgument("chatId") { type = NavType.StringType },
-            ),
+                navArgument("chatId") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
             ChatDetailScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
             )
         }
 
         composable(Routes.CONTACT_REQUESTS) {
             ContactRequestsScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
             )
         }
 
         composable(
             route = Routes.USER_PROFILE,
             arguments = listOf(
-                navArgument("userId") { type = NavType.StringType },
-            ),
+                navArgument("userId") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
             UserProfileScreen(
@@ -118,7 +118,7 @@ fun EchoNavHost(
                 onBack = { navController.popBackStack() },
                 onSendMessage = { contactUserId ->
                     navController.navigate(Routes.chat("new:$contactUserId"))
-                },
+                }
             )
         }
 
@@ -127,13 +127,13 @@ fun EchoNavHost(
                 onBack = { navController.popBackStack() },
                 onUserClicked = { userId ->
                     navController.navigate(Routes.userProfile(userId))
-                },
+                }
             )
         }
 
         composable(Routes.EDIT_PROFILE) {
             EditProfileScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
             )
         }
     }

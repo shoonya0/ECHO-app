@@ -33,7 +33,7 @@ class LoginScreenTest {
                     onTogglePasswordVisibility = {},
                     onSubmit = {},
                     onToggleMode = {},
-                    onClearError = {},
+                    onClearError = {}
                 )
             }
         }
@@ -64,7 +64,7 @@ class LoginScreenTest {
                     onTogglePasswordVisibility = {},
                     onSubmit = {},
                     onToggleMode = {},
-                    onClearError = {},
+                    onClearError = {}
                 )
             }
         }
@@ -95,7 +95,7 @@ class LoginScreenTest {
                     onTogglePasswordVisibility = {},
                     onSubmit = {},
                     onToggleMode = {},
-                    onClearError = {},
+                    onClearError = {}
                 )
             }
         }

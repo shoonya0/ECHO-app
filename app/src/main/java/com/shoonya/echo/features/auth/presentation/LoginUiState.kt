@@ -11,5 +11,5 @@ data class LoginUiState(
     val passwordError: String? = null,
     val usernameError: String? = null,
     val isAuthenticated: Boolean = false,
-    val isSignupSuccess: Boolean = false,
+    val isSignupSuccess: Boolean = false
 )

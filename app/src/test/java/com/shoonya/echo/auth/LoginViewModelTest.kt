@@ -1,10 +1,10 @@
 package com.shoonya.echo.auth
 
 import com.shoonya.echo.fakes.FakeAuthRepository
+import com.shoonya.echo.fakes.TestData
 import com.shoonya.echo.features.auth.domain.usecase.LoginUseCase
 import com.shoonya.echo.features.auth.domain.usecase.SignupUseCase
 import com.shoonya.echo.features.auth.presentation.LoginViewModel
-import com.shoonya.echo.fakes.TestData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -94,7 +94,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `given valid signup data, on submit, isSignupSuccess becomes true and mode flips to login`() = runTest {
+    fun `given valid signup data, on submit, signup succeeds and mode flips to login`() = runTest {
         fakeRepo.setSignupSuccess()
         viewModel.onToggleMode() // switch to signup mode
         viewModel.onEmailChange("new@echo.com")

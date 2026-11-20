@@ -40,10 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shoonya.echo.core.theme.EchoTheme
 
 @Composable
-fun LoginScreen(
-    viewModel: LoginViewModel = hiltViewModel(),
-    onNavigateToHome: () -> Unit,
-) {
+fun LoginScreen(viewModel: LoginViewModel = hiltViewModel(), onNavigateToHome: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -75,7 +72,7 @@ fun LoginScreen(
         onTogglePasswordVisibility = { passwordVisible = !passwordVisible },
         onSubmit = viewModel::onSubmit,
         onToggleMode = viewModel::onToggleMode,
-        onClearError = viewModel::clearError,
+        onClearError = viewModel::clearError
     )
 }
 
@@ -97,23 +94,23 @@ internal fun LoginContent(
     onTogglePasswordVisibility: () -> Unit,
     onSubmit: () -> Unit,
     onToggleMode: () -> Unit,
-    onClearError: () -> Unit,
+    onClearError: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 24.dp),
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = if (isLoginMode) "Welcome Back" else "Create Account",
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -127,9 +124,9 @@ internal fun LoginContent(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next,
+                    imeAction = ImeAction.Next
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
             )
 
             if (!isLoginMode) {
@@ -141,9 +138,9 @@ internal fun LoginContent(
                     supportingText = usernameError?.let { { Text(it) } },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Next,
+                        imeAction = ImeAction.Next
                     ),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
@@ -154,27 +151,39 @@ internal fun LoginContent(
                 isError = passwordError != null,
                 supportingText = passwordError?.let { { Text(it) } },
                 singleLine = true,
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
                 trailingIcon = {
                     IconButton(onClick = onTogglePasswordVisibility) {
                         Icon(
-                            imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                            imageVector = if (passwordVisible) {
+                                Icons.Filled.Visibility
+                            } else {
+                                Icons.Filled.VisibilityOff
+                            },
+                            contentDescription = if (passwordVisible) {
+                                "Hide password"
+                            } else {
+                                "Show password"
+                            }
                         )
                     }
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done,
+                    imeAction = ImeAction.Done
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
             )
 
             if (error != null) {
                 Text(
                     text = error,
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
 
@@ -185,24 +194,28 @@ internal fun LoginContent(
                 enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(48.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
                     Text(
-                        text = if (isLoginMode) "Log In" else "Sign Up",
+                        text = if (isLoginMode) "Log In" else "Sign Up"
                     )
                 }
             }
 
             TextButton(onClick = onToggleMode) {
                 Text(
-                    text = if (isLoginMode) "Don't have an account? Sign Up" else "Already have an account? Log In",
+                    text = if (isLoginMode) {
+                        "Don't have an account? Sign Up"
+                    } else {
+                        "Already have an account? Log In"
+                    }
                 )
             }
         }
@@ -210,7 +223,11 @@ internal fun LoginContent(
 }
 
 @Preview(name = "Light - Login", showBackground = true)
-@Preview(name = "Dark - Login", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Dark - Login",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun LoginContentPreview() {
     EchoTheme {
@@ -231,7 +248,7 @@ private fun LoginContentPreview() {
             onTogglePasswordVisibility = {},
             onSubmit = {},
             onToggleMode = {},
-            onClearError = {},
+            onClearError = {}
         )
     }
 }
@@ -257,7 +274,7 @@ private fun SignupContentPreview() {
             onTogglePasswordVisibility = {},
             onSubmit = {},
             onToggleMode = {},
-            onClearError = {},
+            onClearError = {}
         )
     }
 }
@@ -283,7 +300,7 @@ private fun LoginErrorPreview() {
             onTogglePasswordVisibility = {},
             onSubmit = {},
             onToggleMode = {},
-            onClearError = {},
+            onClearError = {}
         )
     }
 }
