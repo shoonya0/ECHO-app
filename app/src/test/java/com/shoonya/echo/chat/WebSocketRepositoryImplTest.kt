@@ -30,14 +30,15 @@ class WebSocketRepositoryImplTest {
     private val factory = FakeWebSocketFactory()
     private val client = EchoWebSocketClient(factory, { "tok" }, "ws://test/ws")
     private val reconnectManager = ReconnectManager(client)
-    private var sessionsEnded = 0
+    private val endReasons = mutableListOf<SessionEndReason>()
+    private val sessionsEnded get() = endReasons.size
     private val sessionEnded = MutableSharedFlow<SessionEndReason>(extraBufferCapacity = 1)
 
     private fun TestScope.repository() = WebSocketRepositoryImpl(
         client,
         reconnectManager,
         NetworkModule.provideJson(),
-        { sessionsEnded++ },
+        { endReasons += it },
         sessionEnded,
         backgroundScope
     ).also { runCurrent() } // start collecting client events
@@ -145,7 +146,32 @@ class WebSocketRepositoryImplTest {
         assertSessionEndsOn(4403, "ACCOUNT_BANNED")
     }
 
-    private suspend fun TestScope.assertSessionEndsOn(code: Int, reason: String) {
+    // Follow-up to #20/#23: the close reason says why, so Login can tell the user.
+    @Test
+    fun `close 4403 ACCOUNT_BANNED ends the session as banned`() = runTest {
+        assertSessionEndsOn(4403, "ACCOUNT_BANNED", SessionEndReason.ACCOUNT_BANNED)
+    }
+
+    @Test
+    fun `close 4403 ACCOUNT_INACTIVE ends the session as inactive`() = runTest {
+        assertSessionEndsOn(4403, "ACCOUNT_INACTIVE", SessionEndReason.ACCOUNT_INACTIVE)
+    }
+
+    @Test
+    fun `close 4401 TOKEN_EXPIRED ends the session as expired`() = runTest {
+        assertSessionEndsOn(4401, "TOKEN_EXPIRED", SessionEndReason.EXPIRED)
+    }
+
+    @Test
+    fun `close 4403 with an unknown reason ends the session as expired`() = runTest {
+        assertSessionEndsOn(4403, "SOMETHING_NEW", SessionEndReason.EXPIRED)
+    }
+
+    private suspend fun TestScope.assertSessionEndsOn(
+        code: Int,
+        reason: String,
+        expected: SessionEndReason? = null
+    ) {
         val repo = repository()
         repo.connect()
         factory.last.serverOpens()
@@ -156,6 +182,7 @@ class WebSocketRepositoryImplTest {
 
         assertEquals(1, factory.sockets.size)
         assertEquals(1, sessionsEnded)
+        expected?.let { assertEquals(listOf(it), endReasons) }
         assertEquals(WsConnectionStatus.DISCONNECTED, repo.status())
     }
 

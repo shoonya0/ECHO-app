@@ -137,7 +137,14 @@ class WebSocketRepositoryImpl(
         stopped = true
         reconnectManager.stop()
         failPendingRequests()
-        sessionEnder.endSession()
+        sessionEnder.endSession(sessionEndReason(code, reason))
+    }
+
+    // The close reason is the REST code (server #76), so Login can say why for 4403.
+    private fun sessionEndReason(code: Int, reason: String): SessionEndReason = when {
+        code == CLOSE_FORBIDDEN && reason == "ACCOUNT_BANNED" -> SessionEndReason.ACCOUNT_BANNED
+        code == CLOSE_FORBIDDEN && reason == "ACCOUNT_INACTIVE" -> SessionEndReason.ACCOUNT_INACTIVE
+        else -> SessionEndReason.EXPIRED
     }
 
     private fun scheduleReconnect() {
@@ -215,5 +222,9 @@ class WebSocketRepositoryImpl(
         } catch (e: Exception) {
             Timber.tag("WS").e(e, "failed to parse WebSocket frame: %s", raw.take(200))
         }
+    }
+
+    private companion object {
+        const val CLOSE_FORBIDDEN = 4403
     }
 }
