@@ -163,6 +163,15 @@ class LoginScreenTest {
     }
 
     @Test
+    fun givenDeletedAccount_notFoundMessageIsDisplayed() {
+        setLoginContent(SessionEndReason.ACCOUNT_NOT_FOUND)
+
+        composeTestRule
+            .onNodeWithText(string(R.string.session_end_account_not_found))
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun givenExpiredSession_noAccountMessageIsDisplayed() {
         setLoginContent(SessionEndReason.EXPIRED)
 
@@ -171,6 +180,9 @@ class LoginScreenTest {
             .assertCountEquals(0)
         composeTestRule
             .onAllNodesWithText(string(R.string.session_end_account_inactive))
+            .assertCountEquals(0)
+        composeTestRule
+            .onAllNodesWithText(string(R.string.session_end_account_not_found))
             .assertCountEquals(0)
     }
 }

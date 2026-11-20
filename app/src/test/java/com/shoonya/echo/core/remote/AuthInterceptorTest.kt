@@ -60,6 +60,26 @@ class AuthInterceptorTest {
     }
 
     @Test
+    fun `401 ACCOUNT_NOT_FOUND with a token ends the session as account not found`() {
+        call("t", 401, """{"error":"account not found","code":"ACCOUNT_NOT_FOUND"}""").close()
+        assertEquals(listOf(SessionEndReason.ACCOUNT_NOT_FOUND), ended)
+    }
+
+    @Test
+    fun `401 with a body that is not JSON ends the session as expired`() {
+        call("t", 401, "Unauthorized").close()
+        assertEquals(listOf(SessionEndReason.EXPIRED), ended)
+    }
+
+    @Test
+    fun `the caller can still read a 401 body after the interceptor peeked it`() {
+        val body = """{"error":"account not found","code":"ACCOUNT_NOT_FOUND"}"""
+        call("t", 401, body).use { response ->
+            assertEquals(body, response.body?.string())
+        }
+    }
+
+    @Test
     fun `503 AUTH_UNAVAILABLE keeps the session`() {
         call("t", 503, """{"error":"auth unavailable","code":"AUTH_UNAVAILABLE"}""").close()
         assertTrue(ended.isEmpty())

@@ -162,6 +162,12 @@ class WebSocketRepositoryImplTest {
         assertSessionEndsOn(4401, "TOKEN_EXPIRED", SessionEndReason.EXPIRED)
     }
 
+    // #22: the account was deleted; SessionManager clears its local data on this reason.
+    @Test
+    fun `close 4401 ACCOUNT_NOT_FOUND ends the session as account not found`() = runTest {
+        assertSessionEndsOn(4401, "ACCOUNT_NOT_FOUND", SessionEndReason.ACCOUNT_NOT_FOUND)
+    }
+
     @Test
     fun `close 4403 with an unknown reason ends the session as expired`() = runTest {
         assertSessionEndsOn(4403, "SOMETHING_NEW", SessionEndReason.EXPIRED)
