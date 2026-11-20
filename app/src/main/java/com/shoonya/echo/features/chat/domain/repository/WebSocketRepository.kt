@@ -10,7 +10,7 @@ enum class WsConnectionStatus {
     CONNECTED,
     RECONNECTING,
     DISCONNECTED,
-    FAILED,
+    FAILED
 }
 
 interface WebSocketRepository {
