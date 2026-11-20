@@ -29,15 +29,67 @@ class EchoWebSocketClientTest {
         assertEquals("Bearer tok", request.header("Authorization"))
     }
 
+    // #26: with no token every attempt fails the same way, so report a stop (no retry),
+    // not an Error that the repository answers with a reconnect.
     @Test
-    fun `connect without a token opens nothing and reports an error`() = runTest {
+    fun `connect without a token opens nothing and reports a stop`() = runTest {
         token = null
         val events = collect(this)
 
         client.connect()
 
         assertTrue(factory.sockets.isEmpty())
-        assertEquals(listOf(WebSocketEvent.Error("No auth token")), events)
+        assertEquals(listOf(WebSocketEvent.ReconnectFailed), events)
+    }
+
+    // #26: a rejected upgrade means the same as the server's session-ending close codes.
+    @Test
+    fun `handshake 401 is reported like close code 4401 with the server's reason`() = runTest {
+        val events = collect(this)
+        client.connect()
+
+        factory.last.serverRejectsUpgrade(
+            401,
+            """{"error":"Token has been revoked","code":"TOKEN_REVOKED"}"""
+        )
+
+        assertEquals(listOf(WebSocketEvent.Disconnected(4401, "TOKEN_REVOKED")), events)
+        assertFalse(client.isConnected())
+    }
+
+    @Test
+    fun `handshake 403 is reported like close code 4403 with the server's reason`() = runTest {
+        val events = collect(this)
+        client.connect()
+
+        factory.last.serverRejectsUpgrade(
+            403,
+            """{"error":"Account banned","code":"ACCOUNT_BANNED"}"""
+        )
+
+        assertEquals(listOf(WebSocketEvent.Disconnected(4403, "ACCOUNT_BANNED")), events)
+    }
+
+    @Test
+    fun `handshake 401 without a readable body still ends the session`() = runTest {
+        val events = collect(this)
+        client.connect()
+
+        factory.last.serverRejectsUpgrade(401, "not json")
+
+        assertEquals(listOf(WebSocketEvent.Disconnected(4401, "HTTP 401")), events)
+    }
+
+    @Test
+    fun `other handshake errors stay errors`() = runTest {
+        val events = collect(this)
+        client.connect()
+
+        // 503 AUTH_UNAVAILABLE and 429 must not log out: they reconnect with backoff.
+        factory.last.serverRejectsUpgrade(503, """{"code":"AUTH_UNAVAILABLE"}""")
+
+        assertEquals(1, events.size)
+        assertTrue(events.single() is WebSocketEvent.Error)
     }
 
     @Test

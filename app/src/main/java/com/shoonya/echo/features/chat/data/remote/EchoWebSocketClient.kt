@@ -8,6 +8,10 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -64,8 +68,10 @@ class EchoWebSocketClient(
             }
             val token = accessToken()
             if (token == null) {
-                Timber.tag("WS").w("No auth token — cannot connect")
-                _events.tryEmit(WebSocketEvent.Error("No auth token"))
+                // Every attempt would fail the same way, so stop instead of reporting an
+                // Error, which the repository answers with a reconnect (#26).
+                Timber.tag("WS").w("No auth token — cannot connect, not retrying")
+                _events.tryEmit(WebSocketEvent.ReconnectFailed)
                 return
             }
 
@@ -118,10 +124,28 @@ class EchoWebSocketClient(
         override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
             synchronized(lock) {
                 if (!release(ws)) return
+                val sessionEndCode = response?.let { HANDSHAKE_SESSION_END_CODES[it.code] }
+                if (response != null && sessionEndCode != null) {
+                    // The upgrade was refused (401/403): the session is over, exactly as
+                    // when the server closes an open socket with 4401/4403 (#26).
+                    val reason = authErrorCode(response) ?: "HTTP ${response.code}"
+                    Timber.tag("WS").w("handshake rejected: %d %s", response.code, reason)
+                    _events.tryEmit(WebSocketEvent.Disconnected(sessionEndCode, reason))
+                    return
+                }
                 Timber.tag("WS").e(t, "connection failed, code=%d", response?.code ?: -1)
                 _events.tryEmit(WebSocketEvent.Error(t.message ?: "Connection failed"))
             }
         }
+
+        /**
+         * The `code` of the server's token-error body `{"error": "...", "code": "..."}`, such
+         * as TOKEN_REVOKED or ACCOUNT_BANNED; null if the body is missing or not that shape.
+         */
+        private fun authErrorCode(response: Response): String? = runCatching {
+            val body = response.peekBody(MAX_ERROR_BODY_BYTES).string()
+            Json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.contentOrNull
+        }.getOrNull()
 
         // The server's close frame decides why the socket ended (e.g. 4401, 4403), so report
         // it here. The onClosed/onFailure that follows belongs to a released socket.
@@ -153,5 +177,9 @@ class EchoWebSocketClient(
 
     private companion object {
         const val NORMAL_CLOSURE = 1000
+        const val MAX_ERROR_BODY_BYTES = 4_096L
+
+        /** HTTP status of a refused upgrade → the close code that means the same (server #76). */
+        val HANDSHAKE_SESSION_END_CODES = mapOf(401 to 4401, 403 to 4403)
     }
 }
