@@ -73,9 +73,10 @@ fun SettingsScreen(
         }
     }
 
-    // Reload profile every time the screen becomes visible again
+    // Reload profile every time the screen becomes visible again (the ViewModel skips the
+    // first resume, which init already covers)
     LifecycleResumeEffect(Unit) {
-        viewModel.onEvent(SettingsEvent.LoadProfile)
+        viewModel.onEvent(SettingsEvent.ScreenResumed)
         onPauseOrDispose {}
     }
 

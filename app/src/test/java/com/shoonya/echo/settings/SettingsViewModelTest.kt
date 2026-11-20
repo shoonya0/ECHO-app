@@ -125,4 +125,23 @@ class SettingsViewModelTest {
         assertFalse(state.isDeletingAccount)
         assertNotNull(state.error)
     }
+
+    // #29: the Settings tab's first resume used to repeat the init load (GET profile/ 2x).
+    @Test
+    fun `first screen resume after init does not load the profile again`() = runTest {
+        viewModel.onEvent(SettingsEvent.ScreenResumed)
+        advanceUntilIdle()
+
+        assertEquals(1, fakeRepo.getProfileCalls)
+    }
+
+    @Test
+    fun `later screen resume reloads the profile once`() = runTest {
+        viewModel.onEvent(SettingsEvent.ScreenResumed)
+        advanceUntilIdle()
+        viewModel.onEvent(SettingsEvent.ScreenResumed) // back from Edit Profile
+        advanceUntilIdle()
+
+        assertEquals(2, fakeRepo.getProfileCalls)
+    }
 }

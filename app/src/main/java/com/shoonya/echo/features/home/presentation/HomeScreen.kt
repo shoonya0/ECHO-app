@@ -62,9 +62,10 @@ fun HomeScreen(rootNavController: NavHostController, onLogout: () -> Unit) {
 
     // Refresh contacts whenever Home resumes (e.g., returning from ContactRequestsScreen,
     // UserProfileScreen, SuggestionsScreen) so that newly accepted friends appear
-    // in both the Contacts tab and the Chats tab.
+    // in both the Contacts tab and the Chats tab. The ViewModel skips the first resume,
+    // which its init load already covers (#29).
     LifecycleResumeEffect(Unit) {
-        contactsViewModel.onEvent(ContactsEvent.Refresh)
+        contactsViewModel.onEvent(ContactsEvent.ScreenResumed)
         onPauseOrDispose { /* no-op */ }
     }
 
@@ -144,6 +145,9 @@ fun HomeScreen(rootNavController: NavHostController, onLogout: () -> Unit) {
         ) {
             composable("home/contacts") {
                 ContactsListScreen(
+                    // Pass Home's instance: the default hiltViewModel() would create a second
+                    // ContactsViewModel scoped to this tab, whose init loads everything again.
+                    viewModel = contactsViewModel,
                     state = contactsState,
                     onEvent = contactsViewModel::onEvent,
                     onContactClicked = { userId ->

@@ -23,6 +23,18 @@ class FakeContactsRepository : ContactsRepository {
     private var getUserSuggestionsResult: Result<List<UserSuggestion>> = Result.success(emptyList())
     private var getUserProfileResult: Result<User> = Result.failure(Exception("Not set"))
 
+    // How often each list endpoint was requested, so tests can catch duplicate loads (#29).
+    var getContactsCalls = 0
+        private set
+    var getFavoritesCalls = 0
+        private set
+    var getBlockedUsersCalls = 0
+        private set
+    var getIncomingRequestsCalls = 0
+        private set
+    var getOutgoingRequestsCalls = 0
+        private set
+
     fun setContactsSuccess(contacts: List<Contact>) {
         contactsResult = Result.success(contacts)
     }
@@ -143,17 +155,30 @@ class FakeContactsRepository : ContactsRepository {
         getUserSuggestionsResult = Result.failure(Exception(message))
     }
 
-    override suspend fun getContacts(): Result<List<Contact>> = contactsResult
+    override suspend fun getContacts(): Result<List<Contact>> {
+        getContactsCalls++
+        return contactsResult
+    }
 
-    override suspend fun getFavorites(): Result<List<Contact>> = favoritesResult
+    override suspend fun getFavorites(): Result<List<Contact>> {
+        getFavoritesCalls++
+        return favoritesResult
+    }
 
-    override suspend fun getBlockedUsers(): Result<List<Contact>> = blockedUsersResult
+    override suspend fun getBlockedUsers(): Result<List<Contact>> {
+        getBlockedUsersCalls++
+        return blockedUsersResult
+    }
 
-    override suspend fun getIncomingRequests(): Result<List<ContactRequest>> =
-        incomingRequestsResult
+    override suspend fun getIncomingRequests(): Result<List<ContactRequest>> {
+        getIncomingRequestsCalls++
+        return incomingRequestsResult
+    }
 
-    override suspend fun getOutgoingRequests(): Result<List<ContactRequest>> =
-        outgoingRequestsResult
+    override suspend fun getOutgoingRequests(): Result<List<ContactRequest>> {
+        getOutgoingRequestsCalls++
+        return outgoingRequestsResult
+    }
 
     override suspend fun sendContactRequest(userId: String): Result<Unit> = sendContactRequestResult
 

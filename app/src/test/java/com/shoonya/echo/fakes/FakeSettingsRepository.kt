@@ -43,6 +43,8 @@ class FakeSettingsRepository : SettingsRepository {
 
     val updateProfileCalls = mutableListOf<Map<String, String?>>()
     var deleteAccountCalled = false
+    var getProfileCalls = 0
+        private set
     var setDarkModeCallValue: Boolean? = null
 
     fun setProfileResult(result: Result<UserProfile>) {
@@ -61,7 +63,10 @@ class FakeSettingsRepository : SettingsRepository {
         _isDarkMode.value = enabled
     }
 
-    override suspend fun getProfile(): Result<UserProfile> = profileResult
+    override suspend fun getProfile(): Result<UserProfile> {
+        getProfileCalls++
+        return profileResult
+    }
 
     override suspend fun updateProfile(
         displayName: String?,

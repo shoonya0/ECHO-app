@@ -9,6 +9,7 @@ import com.shoonya.echo.features.settings.domain.usecase.DeleteAccountUseCase
 import com.shoonya.echo.features.settings.domain.usecase.GetProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -33,6 +34,9 @@ class SettingsViewModel @Inject constructor(
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events.asSharedFlow()
 
+    private var profileJob: Job? = null
+    private var skipNextResume = true
+
     init {
         loadProfile()
         observeThemePreference()
@@ -50,6 +54,8 @@ class SettingsViewModel @Inject constructor(
     fun onEvent(event: SettingsEvent) {
         when (event) {
             is SettingsEvent.LoadProfile -> loadProfile()
+
+            is SettingsEvent.ScreenResumed -> onScreenResumed()
 
             is SettingsEvent.EditProfile -> {
                 viewModelScope.launch { _events.emit(SettingsEvent.EditProfile) }
@@ -86,8 +92,22 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Reload when the screen comes back into view (e.g. after Edit Profile saved), but not
+     * on the first resume: init has just started that load. A resume while a load is still
+     * running joins it instead of starting another (#29).
+     */
+    private fun onScreenResumed() {
+        if (skipNextResume) {
+            skipNextResume = false
+            return
+        }
+        if (profileJob?.isActive == true) return
+        loadProfile()
+    }
+
     private fun loadProfile() {
-        viewModelScope.launch {
+        profileJob = viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             getProfileUseCase()
                 .onSuccess { profile ->

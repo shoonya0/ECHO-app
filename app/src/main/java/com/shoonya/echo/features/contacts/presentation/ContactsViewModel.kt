@@ -22,6 +22,7 @@ import com.shoonya.echo.features.contacts.domain.usecase.SendContactRequestUseCa
 import com.shoonya.echo.features.contacts.domain.usecase.UnblockUserUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -56,6 +57,9 @@ class ContactsViewModel @Inject constructor(
     private val _events = MutableSharedFlow<ContactsEvent>()
     val events: SharedFlow<ContactsEvent> = _events.asSharedFlow()
 
+    private var loadJob: Job? = null
+    private var skipNextResume = true
+
     init {
         loadAll()
     }
@@ -63,6 +67,7 @@ class ContactsViewModel @Inject constructor(
     fun onEvent(event: ContactsEvent) {
         when (event) {
             is ContactsEvent.Refresh -> loadAll()
+            is ContactsEvent.ScreenResumed -> onScreenResumed()
             is ContactsEvent.SearchQueryChanged -> onSearchQueryChanged(event.query)
             is ContactsEvent.ToggleFavorite -> toggleFavorite(event.contactId)
             is ContactsEvent.BlockUser -> blockUser(event.userId)
@@ -78,8 +83,22 @@ class ContactsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Reload when the screen comes back into view (e.g. after accepting a request on
+     * another screen), but not on the first resume: init has just started that load.
+     * A resume while a load is still running joins it instead of starting another (#29).
+     */
+    private fun onScreenResumed() {
+        if (skipNextResume) {
+            skipNextResume = false
+            return
+        }
+        if (loadJob?.isActive == true) return
+        loadAll()
+    }
+
     private fun loadAll() {
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             runCatching {
                 val rawContacts = getContactsUseCase().getOrThrow()
