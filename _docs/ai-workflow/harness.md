@@ -13,6 +13,7 @@ Everything here is in the repo; the setup record and evidence are in
 | Reviewer | `.claude/agents/code-reviewer.md` | Reviews a diff in a fresh context against the spec |
 | Code graph | `.mcp.json` → `code-review-graph serve` | Callers, tests, impact radius, flows as MCP tools |
 | Library docs | plugin `context7` (`.claude/settings.json` `enabledPlugins`) | Current docs for Compose, Hilt, OkHttp, … |
+| Local testing | [`local-testing/README.md`](../../local-testing/README.md) | Two-user emulator kit: cloned AVDs, fixed serials, GPU/RAM tuning, troubleshooting |
 
 ## Sensors (check after the agent acts)
 
