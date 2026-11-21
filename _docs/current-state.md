@@ -1,10 +1,8 @@
-# ECHO Android: current state (snapshot 2026-11-18)
+# ECHO Android: current state (snapshot 2026-11-21)
 
-Snapshot taken at `201396e` ("app v1 - final") on `chore/ai-harness`. The working tree had
-uncommitted edits from the user (release base URL → `echo-server.onrender.com` in
-`app/build.gradle.kts` and `network_security_config.xml`, `.idea/*`); they don't change
-the debug build the checks use. One page. Claims are **VERIFIED** (run or read in the
-code) or **ASSUMED**.
+Snapshot taken at `f125211` ("Merge pull request #52") on `main`, after the 2026-11-20/21
+review round merged (13 PRs; #41 and #42 were rebase-merged, so they have no merge commit).
+One page. Claims are **VERIFIED** (run or read in the code) or **ASSUMED**.
 
 ## Active work
 
@@ -12,10 +10,10 @@ code) or **ASSUMED**.
 and with a link to exactly one feature state.md. Updated by /close-increment and
 /feature-docs update. -->
 
-- **Feature:** none · merged 2026-11-20: #13 (PR #16), #2 (#17), #11 (#18), #4 (#19), #3 item 1 banned/inactive (#20), #1 one socket + no reconnect on 4401/4403 (#23). `verify.mjs` on `main`: 195 unit tests, 0 failures. **Checked on the emulator 2026-11-20** against the local backend (two accounts, server logs read by the backend session): #17 header name, #16 no stuck banner, #23 one socket + no reconnect after 4403/4401/logout, #14 one `mark_read` per message → `readSeqs`, #20 REST 403 → "Your account is not active" on Login, #19 `Authorization: ██` in logs (`_docs/evidence/device-2026-11-20-*.png`). #18 not reproduced (needs a slow history load)
-- **In review (2026-11-20, second parallel round, none merged):** WebSocket #25 → PR #32, #26 → #34, #30 → #38 · session end #27 → #40 → 4403 reason #41 → #22 #42 (stacked, merge in that order) · login #21 → #35 (conflicts with #42 in `strings.xml` only: rebase the second one) · chat #28 → #33 → chat part of #29 #48 (stacked), #31 → #36 → `set_typing` throttle #39 (stacked, Refs #3) · contacts/profile part of #29 → #37, paged contacts (#3 item 3) → #43. Each passed `verify.mjs`; none run on a device yet
+- **Feature:** none · merged 2026-11-20: #13 (PR #16), #2 (#17), #11 (#18), #4 (#19), #3 item 1 banned/inactive (#20), #1 one socket + no reconnect on 4401/4403 (#23). `verify.mjs` on `main`: 256 unit tests, 0 failures. **Checked on the emulator 2026-11-20** against the local backend (two accounts, server logs read by the backend session): #17 header name, #16 no stuck banner, #23 one socket + no reconnect after 4403/4401/logout, #14 one `mark_read` per message → `readSeqs`, #20 REST 403 → "Your account is not active" on Login, #19 `Authorization: ██` in logs (`_docs/evidence/device-2026-11-20-*.png`). #18 not reproduced (needs a slow history load)
+- **Merged 2026-11-20/21, no PRs open (checked 2026-11-21):** WebSocket #25 #26 #30 (PRs #32 #34 #38); session end #27, 4403 reason #41, #22 (#40 #41 #42); login #21 (#35); chat #28, #29, #31 (#33 #48 #36 #39); contacts/profile #29, paged contacts (#37 #43); tooling #52 (`local-testing/`, see [README](../local-testing/README.md)). All passed `verify.mjs`; none run on a device yet.
 - **Next step:** after the merges, retest on the emulator with the backend session (server `main` 57fe185 includes #171: login 403 has `code`). Then [#44](https://github.com/shoonya0/ECHO-app/issues/44)–[#47](https://github.com/shoonya0/ECHO-app/issues/47), #3 item 2 `RATE_LIMITED` retry; unfiled (low): chat list `events` collected twice (`ChatListScreen` + `HomeScreen`), receiver never clears a stuck "Typing…", `leave_chat` launched in a cancelled `viewModelScope`
-- **Updated:** 2026-11-20 at `0227265`
+- **Updated:** 2026-11-21 at `f125211`
 
 ## What a user can do today
 
@@ -41,12 +39,19 @@ running) only the login screen and the switch to the signup form were checked
 - Single test class: `./gradlew :app:testDebugUnitTest --tests "com.shoonya.echo.chat.ChatDetailViewModelTest"`
 - Build and install the debug app: `./gradlew :app:installDebug` (emulator `Pixel_5`).
   Debug builds call `http://10.0.2.2:8080`, so run the backend locally first
-  ([backend.md](./backend.md)). Release builds call `https://echo-server.onrender.com`.
+  ([backend.md](./backend.md)). `main` still carries the `https://echo.example.com`
+  placeholder; the real release URL is unmerged on the local branch `fix/release-server-url`.
 - Instrumented UI tests: `./gradlew :app:connectedDebugAndroidTest` (needs a running emulator).
+  With two devices attached, pin one: `$env:ANDROID_SERIAL = 'emulator-5556'`, then
+  `./gradlew --stop` (the daemon keeps the environment it started with).
+- Two users on two emulators: `.\local-testing\emulators.ps1 -Install -Launch`
+  ([local-testing/README.md](../local-testing/README.md)).
 
-## Test baseline (at `201396e`)
+## Test baseline (last full run 2026-11-18 at `201396e`)
 
 Run 2026-11-18 on Windows 11, JBR 25 + Gradle daemon JDK 21, Gradle 9.5.0, AGP 9.3.1.
+The unit suite has grown since: at `f125211` `node scripts/verify.mjs` reported
+**256 unit tests, 0 failures (40 classes)**. The table below is the last *full* run.
 
 | Command | Duration | Result | Known failures (by name) |
 |---|---|---|---|
