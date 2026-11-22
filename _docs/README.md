@@ -16,7 +16,7 @@ that isn't reachable from this page. -->
 | The backend: repo, hosts, API contract, which endpoints the app uses | [backend.md](./backend.md) |
 | How we work with the agent: daily loop, checklists, harness, new clone, playbook upgrades | [ai-workflow/](./ai-workflow/README.md) |
 | The original plans, rules and skills the app was built from (Aug 2026 snapshot) | [plans/](./plans/README.md) |
-| Increment log, written by `/close-increment` (turn into a link once it exists) | `status/increments.md` |
+| Increment log, written by `/close-increment` | [status/increments.md](./status/increments.md) |
 | Why a cross-cutting decision was made (create with the first ADR) | `adr/` |
 | How the AI harness was set up, what's deferred, playbook version | [ai-harness-setup.md](./ai-harness-setup.md) |
 
