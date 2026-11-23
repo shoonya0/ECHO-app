@@ -13,13 +13,15 @@ and with a link to exactly one feature state.md. Updated by /close-increment and
 - **Feature:** none · merged 2026-11-20: #13 (PR #16), #2 (#17), #11 (#18), #4 (#19), #3 item 1 banned/inactive (#20), #1 one socket + no reconnect on 4401/4403 (#23). `verify.mjs` on `main`: 256 unit tests, 0 failures. **Checked on the emulator 2026-11-20** against the local backend (two accounts, server logs read by the backend session): #17 header name, #16 no stuck banner, #23 one socket + no reconnect after 4403/4401/logout, #14 one `mark_read` per message → `readSeqs`, #20 REST 403 → "Your account is not active" on Login, #19 `Authorization: ██` in logs (`_docs/evidence/device-2026-11-20-*.png`). #18 not reproduced (needs a slow history load)
 - **Merged 2026-11-20/21, no PRs open (checked 2026-11-21):** WebSocket #25 #26 #30 (PRs #32 #34 #38); session end #27, 4403 reason #41, #22 (#40 #41 #42); login #21 (#35); chat #28, #29, #31 (#33 #48 #36 #39); contacts/profile #29, paged contacts (#37 #43); tooling #52 (`local-testing/`, see [README](../local-testing/README.md)). All passed `verify.mjs`. Only #21 has device evidence: on 2026-11-20 (after its merge) a banned account, a deactivated account and a normal login showed the new messages and reached Contacts (`_docs/evidence/21-login-{banned,inactive,active-success}.png`). The rest are not run on a device yet.
 - **Next step:** after the merges, retest on the emulator with the backend session (server `main` 57fe185 includes #171: login 403 has `code`). Then [#44](https://github.com/shoonya0/ECHO-app/issues/44)–[#47](https://github.com/shoonya0/ECHO-app/issues/47), #3 item 2 `RATE_LIMITED` retry; unfiled (low): chat list `events` collected twice (`ChatListScreen` + `HomeScreen`), receiver never clears a stuck "Typing…", `leave_chat` launched in a cancelled `viewModelScope`
-- **Updated:** 2026-11-22 at `f125211`
+- **Updated:** 2026-11-23 at `f125211`
 
 ## What a user can do today
 
 VERIFIED by reading the screens, ViewModels and API services. On the emulator (no backend
 running) only the login screen and the switch to the signup form were checked
-(`_docs/evidence/setup-smoke-login.png`, `setup-smoke-signup.png`).
+(`_docs/evidence/setup-smoke-login.png`, `setup-smoke-signup.png`). With the local backend
+running, two emulator instances were signed in on 2026-11-21 and both showed the same
+contacts (`_docs/evidence/multi-emu-5554-contacts.png`, `multi-emu-5556-contacts.png`).
 
 - Sign up, log in, log out; the session ends (back to Login) on any `401` with a token.
 - Contacts: list, incoming and sent requests (accept, decline), favourites, block and

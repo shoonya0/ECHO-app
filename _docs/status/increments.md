@@ -19,7 +19,9 @@ Newest first. Started 2026-11-21: increments closed before that date are recorde
   CI changes.
 - **Tests:** none added (no app code touched); the script was exercised as recorded below.
 - **Evidence:** cold start with `-Install -Launch` (userA `emulator-5554`, userB
-  `emulator-5556`, both `topResumedActivity=com.Shoonya.Echo/...MainActivity`); a rerun
+  `emulator-5556`, both `topResumedActivity=com.Shoonya.Echo/...MainActivity`; both instances
+  signed in against the local backend showed the same contacts
+  (`_docs/evidence/multi-emu-5554-contacts.png`, `multi-emu-5556-contacts.png`)); a rerun
   reuses both instances instead of duplicating them; `-Mode ReadOnly` brings both online
   with `-read-only`; `-Stop` empties `adb devices` and force-kills a hung instance; an
   unknown `-TemplateAvd` exits 1 listing the available AVDs; a `cmd /c` screenshot is a
