@@ -18,6 +18,7 @@ import com.shoonya.echo.features.contacts.domain.usecase.SendContactRequestUseCa
 import com.shoonya.echo.features.contacts.domain.usecase.UnblockUserUseCase
 import com.shoonya.echo.features.contacts.presentation.ContactsEvent
 import com.shoonya.echo.features.contacts.presentation.ContactsViewModel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -448,15 +449,115 @@ class ContactsViewModelTest {
         assertEachListLoaded(times = 2)
     }
 
+    // #44: Home shares this ViewModel with the profile and requests screens, and their
+    // actions update it directly, so a resume no longer reloads all five lists: only the
+    // three that can change behind the app's back (contacts, incoming and sent requests).
     @Test
-    fun `later screen resume reloads contacts once`() = runTest {
+    fun `later screen resume refreshes only the lists that can change server-side`() = runTest {
         createViewModel()
         viewModel.onEvent(ContactsEvent.ScreenResumed)
         advanceUntilIdle()
         viewModel.onEvent(ContactsEvent.ScreenResumed) // back from another screen
         advanceUntilIdle()
 
-        assertEachListLoaded(times = 2)
+        assertEquals("contacts", 2, fakeRepo.getContactsCalls)
+        assertEquals("requests", 2, fakeRepo.getIncomingRequestsCalls)
+        assertEquals("sent-requests", 2, fakeRepo.getOutgoingRequestsCalls)
+        assertEquals("favorites", 1, fakeRepo.getFavoritesCalls)
+        assertEquals("blocked", 1, fakeRepo.getBlockedUsersCalls)
+    }
+
+    @Test
+    fun `a resume keeps the favorite flag that the favorites list decided`() = runTest {
+        fakeRepo.setContactsSuccess(listOf(TestData.contact2.copy(isFavorite = false)))
+        fakeRepo.setFavoritesSuccess(listOf(TestData.contact2.copy(isFavorite = true)))
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.onEvent(ContactsEvent.ScreenResumed) // first resume, skipped
+
+        fakeRepo.setContactsSuccess(listOf(TestData.contact2.copy(isFavorite = false)))
+        viewModel.onEvent(ContactsEvent.ScreenResumed) // back from another screen
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.contacts.single().isFavorite)
+    }
+
+    @Test
+    fun `a failed resume refresh keeps the requests already loaded`() = runTest {
+        fakeRepo.setIncomingRequestsSuccess(listOf(TestData.incomingRequest))
+        createViewModel()
+        advanceUntilIdle()
+        fakeRepo.setIncomingRequestsError("Network failure")
+        viewModel.onEvent(ContactsEvent.ScreenResumed) // first resume, skipped
+        viewModel.onEvent(ContactsEvent.ScreenResumed)
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertEquals(1, state.incomingRequests.size)
+        assertNull(state.error)
+    }
+
+    // #44: opening a profile must fetch only that user; the contact lists it reads are
+    // already in this ViewModel, now shared with the profile screen.
+    @Test
+    fun `loading a profile does not reload the contact lists`() = runTest {
+        fakeRepo.setGetUserProfileSuccess(TestData.user)
+        createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onEvent(ContactsEvent.LoadUserProfile(TestData.user.id))
+        advanceUntilIdle()
+
+        assertEquals(1, fakeRepo.getUserProfileCalls)
+        assertEquals(1, fakeRepo.getContactsCalls)
+        assertEquals(1, fakeRepo.getFavoritesCalls)
+        assertEquals(1, fakeRepo.getBlockedUsersCalls)
+        assertEquals(1, fakeRepo.getIncomingRequestsCalls)
+        assertEquals(1, fakeRepo.getOutgoingRequestsCalls)
+    }
+
+    // #44: the profile screen shares this ViewModel, so its request survives the screen.
+    // A reply that lands after the user opened another profile must not replace it.
+    @Test
+    fun `a late reply for the previous profile does not replace the current one`() = runTest {
+        val aliceProfile = TestData.user.copy(
+            id = "alice_profile_id",
+            displayName = "Alice Profile"
+        )
+        fakeRepo.setGetUserProfileSuccess(aliceProfile.id, aliceProfile)
+        fakeRepo.setGetUserProfileSuccess(TestData.user.id, TestData.user)
+        val slowReply = CompletableDeferred<Unit>()
+        fakeRepo.beforeGetUserProfile = { userId ->
+            if (userId == aliceProfile.id) slowReply.await()
+        }
+
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.onEvent(ContactsEvent.LoadUserProfile(aliceProfile.id))
+        advanceUntilIdle() // the first request is still open
+        viewModel.onEvent(ContactsEvent.LoadUserProfile(TestData.user.id))
+        advanceUntilIdle()
+        slowReply.complete(Unit) // the abandoned request finishes late
+        advanceUntilIdle()
+
+        assertEquals(TestData.user.displayName, viewModel.state.value.viewedProfile?.displayName)
+        assertFalse(viewModel.state.value.isProfileLoading)
+    }
+
+    @Test
+    fun `a failed profile load clears the profile shown before`() = runTest {
+        fakeRepo.setGetUserProfileSuccess(TestData.user)
+        createViewModel()
+        advanceUntilIdle()
+        viewModel.onEvent(ContactsEvent.LoadUserProfile(TestData.user.id))
+        advanceUntilIdle()
+        assertNotNull(viewModel.state.value.viewedProfile)
+
+        fakeRepo.setGetUserProfileError("User not found")
+        viewModel.onEvent(ContactsEvent.LoadUserProfile("bad_id"))
+        advanceUntilIdle()
+
+        assertNull(viewModel.state.value.viewedProfile)
     }
 
     private fun assertEachListLoaded(times: Int) {

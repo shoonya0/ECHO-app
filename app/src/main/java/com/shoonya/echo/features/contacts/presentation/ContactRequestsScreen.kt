@@ -39,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shoonya.echo.core.presentation.InitialsAvatar
 import com.shoonya.echo.core.theme.EchoTheme
@@ -48,10 +47,7 @@ import com.shoonya.echo.features.contacts.domain.model.RequestDirection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ContactRequestsScreen(
-    viewModel: ContactsViewModel = hiltViewModel(),
-    onBack: () -> Unit,
-) {
+fun ContactRequestsScreen(viewModel: ContactsViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -69,7 +65,7 @@ fun ContactRequestsScreen(
         actionInFlightUserId = state.actionInFlightUserId,
         onAcceptRequest = { viewModel.onEvent(ContactsEvent.AcceptRequest(it)) },
         onDeclineRequest = { viewModel.onEvent(ContactsEvent.DeclineRequest(it)) },
-        onBack = onBack,
+        onBack = onBack
     )
 }
 
@@ -81,7 +77,7 @@ private fun ContactRequestsContent(
     actionInFlightUserId: String?,
     onAcceptRequest: (String) -> Unit,
     onDeclineRequest: (String) -> Unit,
-    onBack: () -> Unit,
+    onBack: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -93,17 +89,17 @@ private fun ContactRequestsContent(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = "Back"
                         )
                     }
-                },
+                }
             )
-        },
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(paddingValues)
         ) {
             TabRow(selectedTabIndex = selectedTab) {
                 Tab(
@@ -111,14 +107,14 @@ private fun ContactRequestsContent(
                     onClick = { selectedTab = 0 },
                     text = {
                         Text("Incoming (${incomingRequests.size})")
-                    },
+                    }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
                     text = {
                         Text("Outgoing (${outgoingRequests.size})")
-                    },
+                    }
                 )
             }
 
@@ -127,12 +123,12 @@ private fun ContactRequestsContent(
                     if (incomingRequests.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "No incoming requests",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     } else {
@@ -142,22 +138,23 @@ private fun ContactRequestsContent(
                                     request = request,
                                     isActionInFlight = actionInFlightUserId == request.id,
                                     onAccept = { onAcceptRequest(request.id) },
-                                    onDecline = { onDeclineRequest(request.id) },
+                                    onDecline = { onDeclineRequest(request.id) }
                                 )
                             }
                         }
                     }
                 }
+
                 1 -> {
                     if (outgoingRequests.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "No outgoing requests",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     } else {
@@ -165,7 +162,7 @@ private fun ContactRequestsContent(
                             items(outgoingRequests, key = { "out_${it.id}" }) { request ->
                                 OutgoingRequestItem(
                                     request = request,
-                                    isActionInFlight = actionInFlightUserId == request.id,
+                                    isActionInFlight = actionInFlightUserId == request.id
                                 )
                             }
                         }
@@ -182,18 +179,18 @@ private fun IncomingRequestItem(
     isActionInFlight: Boolean,
     onAccept: () -> Unit,
     onDecline: () -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         InitialsAvatar(
             name = request.displayName,
             avatarUrl = request.avatar,
-            size = 48.dp,
+            size = 48.dp
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -203,24 +200,24 @@ private fun IncomingRequestItem(
                 text = request.displayName,
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = "@${request.username}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = "Wants to be your contact",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         if (isActionInFlight) {
             CircularProgressIndicator(
                 modifier = Modifier.size(20.dp),
-                strokeWidth = 2.dp,
+                strokeWidth = 2.dp
             )
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -239,18 +236,18 @@ private fun IncomingRequestItem(
 private fun OutgoingRequestItem(
     request: ContactRequest,
     isActionInFlight: Boolean,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         InitialsAvatar(
             name = request.displayName,
             avatarUrl = request.avatar,
-            size = 48.dp,
+            size = 48.dp
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -260,24 +257,24 @@ private fun OutgoingRequestItem(
                 text = request.displayName,
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = "@${request.username}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = "Request sent — pending",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         if (isActionInFlight) {
             CircularProgressIndicator(
                 modifier = Modifier.size(20.dp),
-                strokeWidth = 2.dp,
+                strokeWidth = 2.dp
             )
         } else {
             Button(
@@ -285,8 +282,8 @@ private fun OutgoingRequestItem(
                 enabled = false,
                 colors = ButtonDefaults.buttonColors(
                     disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    disabledContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ),
+                    disabledContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
             ) {
                 Text("Pending")
             }
@@ -295,22 +292,26 @@ private fun OutgoingRequestItem(
 }
 
 @Preview(name = "Light", showBackground = true)
-@Preview(name = "Dark", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun ContactRequestsPreview() {
     EchoTheme {
         ContactRequestsContent(
             incomingRequests = listOf(
                 ContactRequest("1", "alice", "Alice", "", RequestDirection.INCOMING),
-                ContactRequest("2", "bob", "Bob", "", RequestDirection.INCOMING),
+                ContactRequest("2", "bob", "Bob", "", RequestDirection.INCOMING)
             ),
             outgoingRequests = listOf(
-                ContactRequest("3", "charlie", "Charlie", "", RequestDirection.OUTGOING),
+                ContactRequest("3", "charlie", "Charlie", "", RequestDirection.OUTGOING)
             ),
             actionInFlightUserId = null,
             onAcceptRequest = {},
             onDeclineRequest = {},
-            onBack = {},
+            onBack = {}
         )
     }
 }
@@ -325,7 +326,7 @@ private fun ContactRequestsEmptyPreview() {
             actionInFlightUserId = null,
             onAcceptRequest = {},
             onDeclineRequest = {},
-            onBack = {},
+            onBack = {}
         )
     }
 }

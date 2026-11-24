@@ -2,7 +2,10 @@ package com.shoonya.echo
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -16,6 +19,7 @@ import com.shoonya.echo.features.auth.presentation.LoginViewModel
 import com.shoonya.echo.features.auth.presentation.SplashScreen
 import com.shoonya.echo.features.chat.presentation.chatdetail.ChatDetailScreen
 import com.shoonya.echo.features.contacts.presentation.ContactRequestsScreen
+import com.shoonya.echo.features.contacts.presentation.ContactsViewModel
 import com.shoonya.echo.features.contacts.presentation.SuggestionsScreen
 import com.shoonya.echo.features.contacts.presentation.UserProfileScreen
 import com.shoonya.echo.features.home.presentation.HomeScreen
@@ -118,8 +122,9 @@ fun EchoNavHost(
             )
         }
 
-        composable(Routes.CONTACT_REQUESTS) {
+        composable(Routes.CONTACT_REQUESTS) { backStackEntry ->
             ContactRequestsScreen(
+                viewModel = homeContactsViewModel(navController, backStackEntry),
                 onBack = { navController.popBackStack() }
             )
         }
@@ -133,6 +138,7 @@ fun EchoNavHost(
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
             UserProfileScreen(
                 userId = userId,
+                viewModel = homeContactsViewModel(navController, backStackEntry),
                 onBack = { navController.popBackStack() },
                 onSendMessage = { contactUserId ->
                     navController.navigate(Routes.chat("new:$contactUserId"))
@@ -155,4 +161,19 @@ fun EchoNavHost(
             )
         }
     }
+}
+
+/**
+ * The profile and requests screens act on the contact lists Home already loaded, so they
+ * take Home's ViewModel instead of creating one whose init reloads all five lists (#44).
+ * Both are reached only by pushing from Home, so Home is always below them; keep that true
+ * if another entry point is added.
+ */
+@Composable
+private fun homeContactsViewModel(
+    navController: NavHostController,
+    entry: NavBackStackEntry
+): ContactsViewModel {
+    val homeEntry = remember(entry) { navController.getBackStackEntry(Routes.HOME) }
+    return hiltViewModel(homeEntry)
 }
