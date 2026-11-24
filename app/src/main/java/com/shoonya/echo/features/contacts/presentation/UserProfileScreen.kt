@@ -55,7 +55,7 @@ fun UserProfileScreen(
     userId: String,
     viewModel: ContactsViewModel = hiltViewModel(),
     onBack: () -> Unit,
-    onSendMessage: (String) -> Unit = {},
+    onSendMessage: (String) -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -80,7 +80,7 @@ fun UserProfileScreen(
     val isFavorite = profile != null && (
         state.favorites.any { it.id == profile.id } ||
             state.contacts.any { it.id == profile.id && it.isFavorite }
-    )
+        )
 
     UserProfileContent(
         profile = profile,
@@ -91,16 +91,22 @@ fun UserProfileScreen(
         isFavorite = isFavorite,
         onBack = onBack,
         onSendMessage = { profile?.let { onSendMessage(it.id) } },
-        onAddContact = { profile?.let { viewModel.onEvent(ContactsEvent.SendContactRequest(it.id)) } },
-        onRemoveContact = { profile?.let { viewModel.onEvent(ContactsEvent.RemoveContact(it.id)) } },
+        onAddContact = {
+            profile?.let { viewModel.onEvent(ContactsEvent.SendContactRequest(it.id)) }
+        },
+        onRemoveContact = {
+            profile?.let { viewModel.onEvent(ContactsEvent.RemoveContact(it.id)) }
+        },
         onCancelOutgoingRequest = {
             val outgoingReq = state.outgoingRequests.find { it.username == profile?.username }
             val requestId = outgoingReq?.id ?: profile?.id ?: return@UserProfileContent
             viewModel.onEvent(ContactsEvent.CancelOutgoingRequest(requestId))
         },
-        onToggleFavorite = { profile?.let { viewModel.onEvent(ContactsEvent.ToggleFavorite(it.id)) } },
+        onToggleFavorite = {
+            profile?.let { viewModel.onEvent(ContactsEvent.ToggleFavorite(it.id)) }
+        },
         onBlockUser = { profile?.let { viewModel.onEvent(ContactsEvent.BlockUser(it.id)) } },
-        onUnblockUser = { profile?.let { viewModel.onEvent(ContactsEvent.UnblockUser(it.id)) } },
+        onUnblockUser = { profile?.let { viewModel.onEvent(ContactsEvent.UnblockUser(it.id)) } }
     )
 }
 
@@ -120,7 +126,7 @@ private fun UserProfileContent(
     onCancelOutgoingRequest: () -> Unit = {},
     onToggleFavorite: () -> Unit = {},
     onBlockUser: () -> Unit,
-    onUnblockUser: () -> Unit,
+    onUnblockUser: () -> Unit
 ) {
     var showRemoveDialog by remember { mutableStateOf(false) }
 
@@ -129,18 +135,20 @@ private fun UserProfileContent(
             onDismissRequest = { showRemoveDialog = false },
             title = { Text("Remove Contact") },
             text = {
-                Text("Are you sure you want to remove ${profile?.displayName ?: "this contact"} from your contacts?")
+                Text(
+                    "Are you sure you want to remove ${profile?.displayName ?: "this contact"} from your contacts?"
+                )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showRemoveDialog = false
                         onRemoveContact()
-                    },
+                    }
                 ) {
                     Text(
                         text = "Remove",
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             },
@@ -148,7 +156,7 @@ private fun UserProfileContent(
                 TextButton(onClick = { showRemoveDialog = false }) {
                     Text("Cancel")
                 }
-            },
+            }
         )
     }
 
@@ -160,7 +168,7 @@ private fun UserProfileContent(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = "Back"
                         )
                     }
                 },
@@ -168,18 +176,30 @@ private fun UserProfileContent(
                     if (profile != null) {
                         IconButton(
                             onClick = onToggleFavorite,
-                            enabled = !isActionInFlight,
+                            enabled = !isActionInFlight
                         ) {
                             Icon(
-                                imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                                contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                                tint = if (isFavorite) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                imageVector = if (isFavorite) {
+                                    Icons.Filled.Star
+                                } else {
+                                    Icons.Outlined.StarBorder
+                                },
+                                contentDescription = if (isFavorite) {
+                                    "Remove from favorites"
+                                } else {
+                                    "Add to favorites"
+                                },
+                                tint = if (isFavorite) {
+                                    Color(0xFFFFD700)
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
                             )
                         }
                     }
-                },
+                }
             )
-        },
+        }
     ) { paddingValues ->
         when {
             isLoading -> {
@@ -187,32 +207,34 @@ private fun UserProfileContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
                 }
             }
+
             profile == null -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "User not found",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+
             else -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
                         .padding(horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -221,7 +243,7 @@ private fun UserProfileContent(
                         InitialsAvatar(
                             name = profile.displayName,
                             avatarUrl = profile.avatar,
-                            size = 96.dp,
+                            size = 96.dp
                         )
                         if (profile.presence.isOnline) {
                             Box(
@@ -231,8 +253,8 @@ private fun UserProfileContent(
                                     .clip(CircleShape)
                                     .background(
                                         color = Color(0xFF4CAF50),
-                                        shape = CircleShape,
-                                    ),
+                                        shape = CircleShape
+                                    )
                             )
                         }
                     }
@@ -242,14 +264,14 @@ private fun UserProfileContent(
                     Text(
                         text = "@${profile.username}",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
                         text = profile.displayName,
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineMedium
                     )
 
                     if (profile.statusMessage.isNotBlank()) {
@@ -257,7 +279,7 @@ private fun UserProfileContent(
                         Text(
                             text = profile.statusMessage,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -266,7 +288,7 @@ private fun UserProfileContent(
                         Text(
                             text = profile.bio,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
@@ -278,7 +300,7 @@ private fun UserProfileContent(
                             Color(0xFF4CAF50)
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -287,7 +309,7 @@ private fun UserProfileContent(
 
                     Button(
                         onClick = onSendMessage,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Send Message")
                     }
@@ -298,7 +320,7 @@ private fun UserProfileContent(
                         OutlinedButton(
                             onClick = onUnblockUser,
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !isActionInFlight,
+                            enabled = !isActionInFlight
                         ) {
                             Text("Unblock")
                         }
@@ -307,68 +329,68 @@ private fun UserProfileContent(
                         OutlinedButton(
                             onClick = { showRemoveDialog = true },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !isActionInFlight,
+                            enabled = !isActionInFlight
                         ) {
                             Text(
                                 text = "Remove Contact",
-                                color = MaterialTheme.colorScheme.error,
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedButton(
                             onClick = onBlockUser,
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !isActionInFlight,
+                            enabled = !isActionInFlight
                         ) {
                             Text(
                                 text = "Block",
-                                color = MaterialTheme.colorScheme.error,
+                                color = MaterialTheme.colorScheme.error
                             )
                         }
                     } else if (isOutgoingPending) {
                         // Request already sent — show cancel option
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             OutlinedButton(
                                 onClick = onCancelOutgoingRequest,
                                 modifier = Modifier.weight(1f),
-                                enabled = !isActionInFlight,
+                                enabled = !isActionInFlight
                             ) {
                                 Text("Cancel Request")
                             }
                             OutlinedButton(
                                 onClick = onBlockUser,
                                 modifier = Modifier.weight(1f),
-                                enabled = !isActionInFlight,
+                                enabled = !isActionInFlight
                             ) {
                                 Text(
                                     text = "Block",
-                                    color = MaterialTheme.colorScheme.error,
+                                    color = MaterialTheme.colorScheme.error
                                 )
                             }
                         }
                     } else {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             OutlinedButton(
                                 onClick = onAddContact,
                                 modifier = Modifier.weight(1f),
-                                enabled = !isActionInFlight,
+                                enabled = !isActionInFlight
                             ) {
                                 Text("Add Contact")
                             }
                             OutlinedButton(
                                 onClick = onBlockUser,
                                 modifier = Modifier.weight(1f),
-                                enabled = !isActionInFlight,
+                                enabled = !isActionInFlight
                             ) {
                                 Text(
                                     text = "Block",
-                                    color = MaterialTheme.colorScheme.error,
+                                    color = MaterialTheme.colorScheme.error
                                 )
                             }
                         }
@@ -380,7 +402,11 @@ private fun UserProfileContent(
 }
 
 @Preview(name = "Light", showBackground = true)
-@Preview(name = "Dark", showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 private fun UserProfilePreview() {
     EchoTheme {
@@ -396,7 +422,7 @@ private fun UserProfilePreview() {
                 presence = Presence(PresenceStatus.ONLINE, true, null),
                 isActive = true,
                 isVerified = true,
-                isBanned = false,
+                isBanned = false
             ),
             isLoading = false,
             isActionInFlight = false,
@@ -404,7 +430,7 @@ private fun UserProfilePreview() {
             onSendMessage = {},
             onAddContact = {},
             onBlockUser = {},
-            onUnblockUser = {},
+            onUnblockUser = {}
         )
     }
 }
@@ -425,7 +451,7 @@ private fun UserProfileIsContactPreview() {
                 presence = Presence(PresenceStatus.ONLINE, true, null),
                 isActive = true,
                 isVerified = true,
-                isBanned = false,
+                isBanned = false
             ),
             isLoading = false,
             isActionInFlight = false,
@@ -435,7 +461,7 @@ private fun UserProfileIsContactPreview() {
             onAddContact = {},
             onRemoveContact = {},
             onBlockUser = {},
-            onUnblockUser = {},
+            onUnblockUser = {}
         )
     }
 }
@@ -456,7 +482,7 @@ private fun UserProfileOutgoingPreview() {
                 presence = Presence(PresenceStatus.OFFLINE, false, null),
                 isActive = true,
                 isVerified = false,
-                isBanned = false,
+                isBanned = false
             ),
             isLoading = false,
             isActionInFlight = false,
@@ -466,7 +492,7 @@ private fun UserProfileOutgoingPreview() {
             onAddContact = {},
             onCancelOutgoingRequest = {},
             onBlockUser = {},
-            onUnblockUser = {},
+            onUnblockUser = {}
         )
     }
 }
@@ -483,7 +509,7 @@ private fun UserProfileLoadingPreview() {
             onSendMessage = {},
             onAddContact = {},
             onBlockUser = {},
-            onUnblockUser = {},
+            onUnblockUser = {}
         )
     }
 }
