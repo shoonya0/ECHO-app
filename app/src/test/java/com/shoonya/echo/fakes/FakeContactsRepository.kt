@@ -22,6 +22,10 @@ class FakeContactsRepository : ContactsRepository {
     private var removeFromFavoritesResult: Result<Unit> = Result.success(Unit)
     private var getUserSuggestionsResult: Result<List<UserSuggestion>> = Result.success(emptyList())
     private var getUserProfileResult: Result<User> = Result.failure(Exception("Not set"))
+    private val userProfileResults = mutableMapOf<String, Result<User>>()
+
+    // Lets a test hold the profile request open and resolve it late.
+    var beforeGetUserProfile: suspend (userId: String) -> Unit = {}
 
     // How often each list endpoint was requested, so tests can catch duplicate loads (#29).
     var getContactsCalls = 0
@@ -33,6 +37,8 @@ class FakeContactsRepository : ContactsRepository {
     var getIncomingRequestsCalls = 0
         private set
     var getOutgoingRequestsCalls = 0
+        private set
+    var getUserProfileCalls = 0
         private set
 
     fun setContactsSuccess(contacts: List<Contact>) {
@@ -143,6 +149,10 @@ class FakeContactsRepository : ContactsRepository {
         getUserProfileResult = Result.success(user)
     }
 
+    fun setGetUserProfileSuccess(userId: String, user: User) {
+        userProfileResults[userId] = Result.success(user)
+    }
+
     fun setGetUserProfileError(message: String) {
         getUserProfileResult = Result.failure(Exception(message))
     }
@@ -199,7 +209,11 @@ class FakeContactsRepository : ContactsRepository {
     override suspend fun removeFromFavorites(userId: String): Result<Unit> =
         removeFromFavoritesResult
 
-    override suspend fun getUserProfile(userId: String): Result<User> = getUserProfileResult
+    override suspend fun getUserProfile(userId: String): Result<User> {
+        getUserProfileCalls++
+        beforeGetUserProfile(userId)
+        return userProfileResults[userId] ?: getUserProfileResult
+    }
 
     override suspend fun getUserSuggestions(page: Int, limit: Int): Result<List<UserSuggestion>> =
         getUserSuggestionsResult

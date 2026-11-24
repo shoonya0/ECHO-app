@@ -39,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shoonya.echo.core.presentation.InitialsAvatar
 import com.shoonya.echo.core.theme.EchoTheme
@@ -48,7 +47,7 @@ import com.shoonya.echo.features.contacts.domain.model.RequestDirection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ContactRequestsScreen(viewModel: ContactsViewModel = hiltViewModel(), onBack: () -> Unit) {
+fun ContactRequestsScreen(viewModel: ContactsViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {

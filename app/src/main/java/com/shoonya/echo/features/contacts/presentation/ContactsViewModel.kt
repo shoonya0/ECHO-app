@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -58,6 +59,7 @@ class ContactsViewModel @Inject constructor(
     val events: SharedFlow<ContactsEvent> = _events.asSharedFlow()
 
     private var loadJob: Job? = null
+    private var profileJob: Job? = null
     private var skipNextResume = true
 
     init {
@@ -84,9 +86,13 @@ class ContactsViewModel @Inject constructor(
     }
 
     /**
-     * Reload when the screen comes back into view (e.g. after accepting a request on
-     * another screen), but not on the first resume: init has just started that load.
-     * A resume while a load is still running joins it instead of starting another (#29).
+     * Home shares this ViewModel with the profile and requests screens (#44), so their
+     * actions already update this state. A resume therefore refreshes only the lists that
+     * can change without the app: contacts (a peer accepts, removes or blocks you; presence
+     * moves) and the two request lists. Favorites and blocked users are not re-fetched;
+     * this ViewModel keeps them from its own actions.
+     * The first resume is skipped (init has just loaded them), and a resume while a load
+     * is still running joins it instead of starting another (#29).
      */
     private fun onScreenResumed() {
         if (skipNextResume) {
@@ -94,7 +100,35 @@ class ContactsViewModel @Inject constructor(
             return
         }
         if (loadJob?.isActive == true) return
-        loadAll()
+        refreshOnResume()
+    }
+
+    /**
+     * Background refresh of the lists that can change server-side, without the full-screen
+     * loading state: it runs on every resume at Home, where the contacts list is already on
+     * screen. Favorites are not re-fetched (#44); the current list still decides the
+     * favorite flag, since the contacts endpoint may not populate it.
+     */
+    private fun refreshOnResume() {
+        loadJob = viewModelScope.launch {
+            runCatching {
+                val rawContacts = getContactsUseCase().getOrThrow()
+                val incoming = getIncomingRequestsUseCase().getOrThrow()
+                val outgoing = getOutgoingRequestsUseCase().getOrThrow()
+                _state.update { state ->
+                    val favoriteIds = state.favorites.map { it.id }.toSet()
+                    state.copy(
+                        contacts = rawContacts.map {
+                            if (it.id in favoriteIds) it.copy(isFavorite = true) else it
+                        },
+                        incomingRequests = incoming,
+                        outgoingRequests = outgoing
+                    )
+                }
+            }.onFailure { err ->
+                Timber.tag("ContactsVM").e(err, "refreshOnResume failed")
+            }
+        }
     }
 
     private fun loadAll() {
@@ -326,9 +360,18 @@ class ContactsViewModel @Inject constructor(
     }
 
     private fun loadUserProfile(userId: String) {
-        viewModelScope.launch {
-            _state.update { it.copy(isProfileLoading = true) }
-            getUserProfileUseCase(userId)
+        // One profile at a time: this ViewModel is shared with Home (#44), so a late reply
+        // for the previous profile must never land on the profile now on screen.
+        profileJob?.cancel()
+        profileJob = viewModelScope.launch {
+            // Clear the previous user first, so a failed load cannot leave someone else's
+            // profile on screen.
+            _state.update { it.copy(isProfileLoading = true, viewedProfile = null) }
+            val result = getUserProfileUseCase(userId)
+            // Cancelling a coroutine awaiting the repository call makes runCatching return
+            // a failure instead of throwing, so check the job before either branch writes.
+            if (!isActive) return@launch
+            result
                 .onSuccess { user ->
                     _state.update { it.copy(isProfileLoading = false, viewedProfile = user) }
                 }

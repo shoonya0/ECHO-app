@@ -60,10 +60,10 @@ fun HomeScreen(rootNavController: NavHostController, onLogout: () -> Unit) {
     val chatListViewModel: ChatListViewModel = hiltViewModel()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Refresh contacts whenever Home resumes (e.g., returning from ContactRequestsScreen,
-    // UserProfileScreen, SuggestionsScreen) so that newly accepted friends appear
-    // in both the Contacts tab and the Chats tab. The ViewModel skips the first resume,
-    // which its init load already covers (#29).
+    // Refresh on return from another screen. The profile and requests screens share this
+    // ViewModel (#44), so their actions already update it, but a resume still picks up
+    // server-side changes (a peer accepting you, presence) and new requests. The ViewModel
+    // skips the first resume, which its init load already covers (#29).
     LifecycleResumeEffect(Unit) {
         contactsViewModel.onEvent(ContactsEvent.ScreenResumed)
         onPauseOrDispose { /* no-op */ }

@@ -41,7 +41,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shoonya.echo.core.domain.model.Presence
 import com.shoonya.echo.core.domain.model.PresenceStatus
@@ -53,7 +52,7 @@ import com.shoonya.echo.core.theme.EchoTheme
 @Composable
 fun UserProfileScreen(
     userId: String,
-    viewModel: ContactsViewModel = hiltViewModel(),
+    viewModel: ContactsViewModel,
     onBack: () -> Unit,
     onSendMessage: (String) -> Unit = {}
 ) {
