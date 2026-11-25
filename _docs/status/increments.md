@@ -21,7 +21,7 @@ Newest first. Started 2026-11-21: increments closed before that date are recorde
 - **Evidence:** `node scripts/verify.mjs` passed (4 steps: docs-check, architecture,
   ktlint on changed files, compile + unit tests). Not run on a device: the leak needs two
   logins in one process (or a readable `ChatCache`), which unit tests cover directly.
-- **Commit:** <pending>
+- **Commit:** `78386be`
 
 ## 2026-11-24 - one ContactsViewModel for Home, profile and requests (#44)
 
