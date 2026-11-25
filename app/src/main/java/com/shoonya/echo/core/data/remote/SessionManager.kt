@@ -26,17 +26,17 @@ class SessionManager internal constructor(
     val sessionExpired: SharedFlow<SessionEndReason> = _sessionExpired.asSharedFlow()
 
     /**
-     * Clears all stored tokens and emits a session-ended event with [reason]
-     * so the UI layer can navigate to Login and say why. For a deleted account
-     * ([SessionEndReason.ACCOUNT_NOT_FOUND]) it also clears its in-memory data.
+     * Clears all stored tokens and the account's in-memory data, then emits a
+     * session-ended event with [reason] so the UI layer can navigate to Login and
+     * say why. Every reason clears the data: whichever account logs in next in this
+     * process must not see the previous account's chats (#45).
      */
     fun expire(reason: SessionEndReason = SessionEndReason.EXPIRED) {
         clearTokens()
-        if (reason == SessionEndReason.ACCOUNT_NOT_FOUND) {
-            clearAccountData()
-            Timber.tag("SessionManager").i("Account not found — local account data cleared")
-        }
-        Timber.tag("SessionManager").w("Session ended (%s) — tokens cleared", reason)
+        clearAccountData()
+        Timber.tag(
+            "SessionManager"
+        ).i("Session ended (%s) — tokens and account data cleared", reason)
         _sessionExpired.tryEmit(reason)
     }
 }

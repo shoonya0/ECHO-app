@@ -7,8 +7,9 @@ import dagger.multibindings.Multibinds
 
 /**
  * In-memory data that belongs to the signed-in account. `SessionManager` clears every bound
- * one when the account no longer exists (`ACCOUNT_NOT_FOUND`, #22), so the next account to log
- * in within the same process doesn't see it. Features bind theirs with `@Binds @IntoSet`.
+ * one whenever a session ends (any [com.shoonya.echo.core.domain.model.SessionEndReason],
+ * #45), so the next account to log in within the same process doesn't see it. Features bind
+ * theirs with `@Binds @IntoSet`.
  */
 interface PerAccountCache {
     fun clear()

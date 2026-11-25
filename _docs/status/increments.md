@@ -3,6 +3,26 @@
 Newest first. Started 2026-11-21: increments closed before that date are recorded only in
 `_docs/current-state.md` and in the PR list.
 
+## 2026-11-25 - clear account data on every session end (#45)
+
+- **Problem:** `SessionManager.expire()` cleared the bound `PerAccountCache`s only for
+  `ACCOUNT_NOT_FOUND`; an expired or revoked token, a ban or a deactivation cleared the
+  tokens only. A different account logging in in the same process could therefore see the
+  previous account's chats from `ChatCache` until the process died.
+- **Change:** `expire()` now always clears the tokens and every `PerAccountCache` (#45);
+  manual logout was already clearing `ChatCache` in `AuthRepositoryImpl.logout()`.
+  `PerAccountCache`'s doc comment now states the invariant instead of naming
+  `ACCOUNT_NOT_FOUND`.
+- **Tests:** `SessionManagerTest`'s "other reasons keep the account's local data" pinned
+  the buggy behaviour, so it was replaced by "every session end clears the account's local
+  data": it expires for all four reasons and asserts four clears (the old test asserted
+  zero). Verified to fail before the fix (one clear) and pass after. 261 unit tests,
+  0 failures (40 classes).
+- **Evidence:** `node scripts/verify.mjs` passed (4 steps: docs-check, architecture,
+  ktlint on changed files, compile + unit tests). Not run on a device: the leak needs two
+  logins in one process (or a readable `ChatCache`), which unit tests cover directly.
+- **Commit:** <pending>
+
 ## 2026-11-24 - one ContactsViewModel for Home, profile and requests (#44)
 
 - **Problem:** opening a user profile or the contact-requests screen created a second
