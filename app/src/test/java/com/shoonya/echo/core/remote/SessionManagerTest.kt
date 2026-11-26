@@ -46,15 +46,18 @@ class SessionManagerTest {
         assertEquals(1, dataCleared)
     }
 
+    // #45: the next account to log in within this process must not see the previous
+    // account's data, whatever ended the session.
     @Test
-    fun `other reasons keep the account's local data`() {
+    fun `every session end clears the account's local data`() {
         var dataCleared = 0
         val manager = SessionManager(clearTokens = {}, clearAccountData = { dataCleared++ })
 
-        manager.expire()
+        manager.expire(SessionEndReason.EXPIRED)
         manager.expire(SessionEndReason.ACCOUNT_BANNED)
         manager.expire(SessionEndReason.ACCOUNT_INACTIVE)
+        manager.expire(SessionEndReason.ACCOUNT_NOT_FOUND)
 
-        assertEquals(0, dataCleared)
+        assertEquals(4, dataCleared)
     }
 }
